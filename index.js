@@ -38,6 +38,12 @@ const { argv } = yargs(process.argv.slice(2))
     describe: "Output file path",
     default: 'benchmark.md',
   })
+  .option("n", {
+    alias: "nospaces",
+    type: "boolean",
+    describe: 'Replace all space characters "\\s" in image code. Useful for posting on GitHub.',
+    default: false,
+  })
   .option("d", {
     alias: "detailed",
     type: "number",
@@ -64,6 +70,7 @@ const { argv } = yargs(process.argv.slice(2))
     alias: "unlisted",
     type: "boolean",
     describe: "Output unlisted tooks in console",
+    default: false,
   })
   .help('h')
 
@@ -403,7 +410,9 @@ export default async function parseDebugLog(_options=argv) {
   function quickchartTemplate(name, w, h, c) {
     return /* html */`${name ? '# '+name:''}
 <p align="center">
-<img src="https://quickchart.io/chart?${w?`w=${w}&`:''}${h?`h=${h}&`:''}c=${c}"/>
+<img src="https://quickchart.io/chart?${w?`w=${w}&`:''}${h?`h=${h}&`:''}c=${
+  options.nospaces ? c.replace(/\s+/gm,'%20') : c
+}"/>
 </p>
 
 <br>
@@ -412,10 +421,9 @@ export default async function parseDebugLog(_options=argv) {
 
   /**
    * Create array of templates
-   * @param {object} options
    * @returns {string[]}
    */
-  var composeTempelates = (options) => [
+  var composeTempelates = () => [
 
   /* html */`## Minecraft load time benchmark
 ${options.modpack ? '\n### ' + options.modpack : ''}
@@ -638,7 +646,7 @@ ${get_fml_stuff_table()}
 
   try {
     saveText(
-      composeTempelates(options).join('\n'),
+      composeTempelates().join('\n'),
       options.output
     )
   } catch (error) {
