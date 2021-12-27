@@ -9,26 +9,71 @@
 // @ts-check
 
 
-import { writeFileSync } from 'fs'
-import { escapeRegex, loadText, defaultHelper } from '../lib/utils.js'
+import { writeFileSync, readFileSync, mkdirSync } from 'fs'
+import { dirname, resolve } from 'path'
 import _ from 'lodash'
 import numeral from 'numeral'
 import Color from 'color'
 import ColorHash from 'color-hash'
 import memoize from 'memoizee'
-
-import { URL, fileURLToPath  } from 'url' // @ts-ignore
-function relative(relPath='./') { return fileURLToPath(new URL(relPath, import.meta.url)) }
+import chalk from 'chalk'
 
 import yargs from 'yargs'
-const argv = yargs(process.argv.slice(2))
-  .alias('u', 'unlisted').describe('u', 'Output unlisted tooks in console')
-  .alias('i', 'input').describe('i', 'Debug.log path').string('i').default('i', 'logs/debug.log')
-  .alias('o', 'output').describe('o', 'Output file path').string('o')
-  .argv
+const { argv } = yargs(process.argv.slice(2))
+  .option("i", {
+    alias: "input",
+    type: "string",
+    describe: "Debug.log path",
+    default: 'logs/debug.log',
+  })
+  .option("c", {
+    alias: "ctlog",
+    type: "string",
+    describe: "crafttweaker.log path",
+    default: 'crafttweaker.log',
+  })
+  .option("o", {
+    alias: "output",
+    type: "string",
+    describe: "Output file path",
+    default: 'benchmark.md',
+  })
+  .option("d", {
+    alias: "detailed",
+    type: "number",
+    describe: "Count of detailed mods in main pie chart",
+    default: 20,
+  })
+  .option("p", {
+    alias: "plugins",
+    type: "number",
+    describe: "Plugin count to show in 'JEI plugins' section",
+    default: 15,
+  })
+  .option("m", {
+    alias: "modpack",
+    type: "string",
+    describe: "Modpack name in header",
+  })
+  .option("cwd", {
+    type: "string",
+    describe: "Minecraft directory to OPEN files from",
+    default: './',
+  })
+  .option("u", {
+    alias: "unlisted",
+    type: "boolean",
+    describe: "Output unlisted tooks in console",
+  })
+  .help('h')
 
 // @ts-ignore
 const colorHash = new (ColorHash.default)({lightness: [0.2625, 0.375, 0.4875]});
+
+function escapeRegex(string) {
+  return string.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
+}
+
 
 //############################################################################
 //############################################################################
@@ -54,12 +99,10 @@ const chart_obj = {}
 
 export const getModLoadTimeTuples = memoize(
 /**
- * @param {string} debug_log_path
+ * @param {string} debug_log
  * @return {[modName: string, loadTime: number, fileName: string][]}
- */  
-(debug_log_path='logs/debug.log') => {
-  const debug_log = loadText(debug_log_path)
-
+ */
+(debug_log) => {
   const fullSearchRgx = new RegExp(
     escapeRegex('[Client thread/DEBUG] [FML]: Bar Step: ') + fml_steps_rgx + '(.+) took (\\d+.\\d+)s', 'gmi'
   )
@@ -82,7 +125,7 @@ export const getModLoadTimeTuples = memoize(
   }
 
   return chart_arr.map(([modName, steps])=>[modName, _.sum(steps), mod_fileNames[modName]])
-})
+}, { primitive: true })
 
 /**
  * @param {() => string[]} fn
@@ -102,33 +145,99 @@ function num(n) {
   return numeral(typeof n == 'string' ? parseFloat(n) : n).format('0.00').padStart(6)
 }
 
+const defaultLogger = {
+  begin: function (s, steps) {
+    // @ts-ignore
+    this.done()
+    if(steps) (this.steps = steps, this.stepSize = steps / 30)
+    process.stdout.write(`🔹 ${s.trim()}` + (steps?` [${steps}] `:''))
+    this.isUnfinishedTask = true
+  },
+  done: function (s='') {
+    if(!this.isUnfinishedTask) return
+    process.stdout.write(` ${chalk.gray(`${s} ✔`)}\n`)
+    this.isUnfinishedTask = false
+  },
+  step: function (s='.') {
+    if(this.steps <= 30 || (this.steps-- % this.stepSize === 0)) {
+      process.stdout.write(s)
+    }
+  },
+  result: function (s='') {
+    this.done()
+    process.stdout.write(`✔️ ${chalk.dim.green(`${s}`)}\n`)
+  },
+  warn : function (...s) { this.done(); process.stdout.write(`⚠️ ${chalk.dim.yellow(`${s.join('\t')}`)}\n`) },
+  error: function (...s) { this.done(); process.stdout.write(`🛑 ${chalk.dim.red   (`${s.join('\t')}`)}\n`) },
+
+  isUnfinishedTask: false,
+}
+
 // ██╗███╗   ██╗██╗████████╗
 // ██║████╗  ██║██║╚══██╔══╝
 // ██║██╔██╗ ██║██║   ██║
 // ██║██║╚██╗██║██║   ██║
 // ██║██║ ╚████║██║   ██║
 // ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
-export async function init(h=defaultHelper, options=argv) {
+
+/**
+ * 
+ * @param {{[key:string]: any}} _options 
+ */
+export default async function parseDebugLog(_options=argv) {
+
+  /** @type {{[key:string]: any}} */
+  const options = {
+    input: 'logs/debug.log',
+    ctlog: 'crafttweaker.log',
+    plugins: 15,
+    detailed: 20,
+    cwd: './',
+    mkdirSync,
+    readFileSync,
+    writeFileSync,
+
+    ..._options
+  }
+  
+  function loadText(/** @type {string} */ fpath) {
+    return options.readFileSync(resolve(options.cwd??'./', fpath), 'utf8')
+  }
+
+  function saveText(txt, filename) {
+    // const filename = resolve(_options.cwd??'./', _filename)
+    options.mkdirSync(dirname(filename), { recursive: true })
+    options.writeFileSync(filename, txt)
+  }
+
+  const /** @type {typeof defaultLogger} */ log = options.defaultLogger ?? defaultLogger
 
   //############################################################################
   // Numbers
 
-  await h.begin('Parsing debug.log')
-  const debug_log = loadText(options['input'])
-  const time_arr = getModLoadTimeTuples(options['input'])
+  
+  await log.begin('Opening debug.log')
+  let debug_log
+  try {
+    debug_log = loadText(options.input)
+  } catch (error) {
+    return await log.error(`Can't open input file "${options.input}". Use option "--input=path/to/debug.log"`)
+  }
 
-  var get_totalLoadTime    = memoize(() => Math.max(0,...[...debug_log.matchAll(/\[FML\]: Bar Finished: Loading took (.*)s/g)].map(([,v])=>parseFloat(v))))
-  var get_totalLoadTimeMin = memoize(() => {const min = Math.floor(get_totalLoadTime() / 60); return `${min}:${Math.floor(get_totalLoadTime()) - min*60}`})
-  var get_totalModsTime    = memoize(() => _.sumBy(time_arr, '1'))
-  var get_totalStuffTime   = memoize(() => get_totalLoadTime() - get_totalModsTime())
+  const time_arr = getModLoadTimeTuples(debug_log)
+
+  const get_totalLoadTime    = memoize(() => Math.max(0,...[...debug_log.matchAll(/\[FML\]: Bar Finished: Loading took (.*)s/g)].map(([,v])=>parseFloat(v))))
+  const get_totalLoadTimeMin = memoize(() => {const min = Math.floor(get_totalLoadTime() / 60); return `${min}:${Math.floor(get_totalLoadTime()) - min*60}`})
+  const get_totalModsTime    = memoize(() => _.sumBy(time_arr, '1'))
+  const get_totalStuffTime   = memoize(() => get_totalLoadTime() - get_totalModsTime())
   
 
-  await h.begin('Looking for JEI plugins')
+  await log.begin('Looking for JEI plugins')
   const jeiPlugins = [...debug_log.matchAll(/\[jei\]: Registered +plugin: (.*) in (\d+) ms/g)]
       .map(/** @return {[string, number]} */([, pluginName, time]) => [pluginName, parseInt(time)/1000])
       .sort(([,a],[,b])=>b-a)
 
-  const showPlugins = options['showPlugins'] ?? 15
+  const showPlugins = options.plugins
   var get_jei_plugins = memoizeWrap(()=>jeiPlugins
     .slice(0,showPlugins)
     .concat([[
@@ -140,8 +249,8 @@ export async function init(h=defaultHelper, options=argv) {
 
   //############################################################################
   // Chart 1
-  await h.begin('Mods loading time')
-  const pieMods = 20
+  await log.begin('Mods loading time')
+  const pieMods = options.detailed
   const instantMods = time_arr.filter(m=>m[1]<0.1)
   const fastMods    = time_arr.filter(m=>m[1]>=0.1 && m[1]<=1.0)
   const otherMods   = time_arr.slice(pieMods).filter(m=>m[1]>1.0)
@@ -185,11 +294,14 @@ export async function init(h=defaultHelper, options=argv) {
   spliceModLoadArray('Just Enough Items', 'Plugins', _.sumBy(jeiPlugins,'1'))
 
   // Split CraftTweaker
-  const ct_scriptTime = parseFloat(
-    loadText('crafttweaker.log')
-    .match(/\[INITIALIZATION\]\[CLIENT\]\[INFO\] Completed script loading in: (\d+)ms/m)[1]
-  ) / 1000
-  spliceModLoadArray('CraftTweaker2', 'Script Loading', ct_scriptTime)
+  try {
+    spliceModLoadArray('CraftTweaker2', 'Script Loading', parseFloat(
+      loadText('crafttweaker.log')
+      .match(/\[INITIALIZATION\]\[CLIENT\]\[INFO\] Completed script loading in: (\d+)ms/m)[1]
+    ) / 1000)
+  } catch (error) {
+    await log.warn(`Can't open crafttweaker.log file "${options.ctlog}". Use option "--ctlog=path/to/crafttweaker.log"`)
+  }
 
   // Split Tcon
   spliceModLoadArray(
@@ -207,7 +319,7 @@ export async function init(h=defaultHelper, options=argv) {
 
   //############################################################################
   // Chart 2
-  await h.begin('FML steps details')
+  await log.begin('FML steps details')
   const showDetails = 12
   const detailedNames = time_arr
     .map(([m])=>m)
@@ -231,7 +343,7 @@ export async function init(h=defaultHelper, options=argv) {
 
   //############################################################################
   // Chart ??
-  await h.begin('FML stuff')
+  await log.begin('FML stuff')
   const fmlStuffLookupsRgx = '('+
   `Loading sounds
   Loading Resource - SoundHandler
@@ -306,7 +418,7 @@ export async function init(h=defaultHelper, options=argv) {
   var composeTempelates = (options) => [
 
   /* html */`## Minecraft load time benchmark
-${options.modpackName ? '\n### ' + options.modpackName : ''}
+${options.modpack ? '\n### ' + options.modpack : ''}
 
 ---
 
@@ -522,15 +634,19 @@ ${get_fml_stuff_table()}
   //############################################################################
   //############################################################################
 
-  await h.begin('Writing file')
+  await log.begin('Writing file')
 
-  writeFileSync(
-    relative('data/benchmark.md'),
-    composeTempelates(options).join('\n')
-  )
+  try {
+    saveText(
+      composeTempelates(options).join('\n'),
+      options.output
+    )
+  } catch (error) {
+    await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"`)
+  }
 
 
-  argv['unlisted'] && console.log(
+  options.unlisted && console.log(
     '\nFML timings:\n'+
     [...debug_log.matchAll(/\[Client thread\/DEBUG\] \[FML\]: (.*) took (\d+\.\d+)s/g)]
     .map(/** @return {[string, number]} */([, stepName, time]) => [stepName, parseFloat(time)])
@@ -544,9 +660,9 @@ ${get_fml_stuff_table()}
     .join('\n')
   )
 
-  h.result(`Load Time total: ${get_totalLoadTime()}`)
+  log.result(`Load Time total: ${get_totalLoadTime()}`)
 
 }
 
 // @ts-ignore
-if(import.meta.url === (await import('url')).pathToFileURL(process.argv[1]).href) init()
+if(import.meta.url === (await import('url')).pathToFileURL(process.argv[1]).href) parseDebugLog()
