@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * @file Collect information about load time from Debug.log
  * and output it in .MD file

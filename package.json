@@ -1,8 +1,9 @@
 {
   "name": "mc-benchmark",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Build charts about load time of Minecraft modpack.",
   "main": "index.js",
+  "bin": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
