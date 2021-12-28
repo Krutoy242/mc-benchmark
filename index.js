@@ -74,7 +74,9 @@ const { argv } = yargs(process.argv.slice(2))
     describe: "Output unlisted tooks in console",
     default: false,
   })
+  .version(false)
   .help('h')
+  .wrap(null)
 
 // @ts-ignore
 const colorHash = new (ColorHash.default)({lightness: [0.2625, 0.375, 0.4875]});
