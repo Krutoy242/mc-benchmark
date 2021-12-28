@@ -1,6 +1,6 @@
 {
   "name": "mc-benchmark",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Build charts about load time of Minecraft modpack.",
   "main": "index.js",
   "bin": "index.js",
