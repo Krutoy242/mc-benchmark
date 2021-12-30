@@ -193,7 +193,8 @@ const defaultLogger = {
 
 /**
  * 
- * @param {{[key:string]: any}} _options 
+ * @param {{[key:string]: any}} _options
+ * @returns {Promise<void>}
  */
 export default async function parseDebugLog(_options=argv) {
 
@@ -207,6 +208,7 @@ export default async function parseDebugLog(_options=argv) {
     mkdirSync,
     readFileSync,
     writeFileSync,
+    output: 'benchmark.md',
 
     ..._options
   }
@@ -216,7 +218,6 @@ export default async function parseDebugLog(_options=argv) {
   }
 
   function saveText(txt, filename) {
-    // const filename = resolve(_options.cwd??'./', _filename)
     options.mkdirSync(dirname(filename), { recursive: true })
     options.writeFileSync(filename, txt)
   }
