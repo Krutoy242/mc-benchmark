@@ -238,6 +238,14 @@ export default async function parseDebugLog(_options=argv) {
 
   const time_arr = getModLoadTimeTuples(debug_log)
 
+  if(!time_arr.length) {
+    if(!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
+      return await log.error(`The file "${options.input}" does not contain rich debugging information. It is most likely not actual debug.log.\n\nHint:\nSome MC launchers disable generating of debug.log file by default. Find out how to enable it.`)
+    } else {
+      return await log.error(`The file "${options.input}" not full. Your Minecraft not loaded completely or file is corrupted.`)
+    }
+  }
+
   const get_totalLoadTime    = memoize(() => Math.max(0,...[...debug_log.matchAll(/\[FML\]: Bar Finished: Loading took (.*)s/g)].map(([,v])=>parseFloat(v))))
   const get_totalLoadTimeMin = memoize(() => {const min = Math.floor(get_totalLoadTime() / 60); return `${min}:${Math.floor(get_totalLoadTime()) - min*60}`})
   const get_totalModsTime    = memoize(() => _.sumBy(time_arr, '1'))
