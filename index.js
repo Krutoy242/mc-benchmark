@@ -295,10 +295,16 @@ export default async function parseDebugLog(_options=argv) {
     if(!timeReduce || isNaN(timeReduce)) return
     const [eColor, eTime, eName] = entry
 
+    // Add time if second thread interfer calculating
+    let newTime = eTime-timeReduce
+    if(newTime < 0) {
+      newTime = entry[1]
+    }
+
     modLoadArray.splice(
       modLoadArray.indexOf(entry),
       1,
-      [eColor, eTime-timeReduce, eName],
+      [eColor, newTime, eName],
       [
         Color('#'+eColor).darken(0.1).hex().slice(1),
         timeReduce,
