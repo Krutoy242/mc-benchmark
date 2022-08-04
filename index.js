@@ -253,7 +253,7 @@ export default async function parseDebugLog(_options=argv) {
   
 
   await log.begin('Looking for JEI plugins')
-  const jeiPlugins = [...debug_log.matchAll(/\[jei\]: Registered +plugin: (.*) in (\d+) ms/g)]
+  const jeiPlugins = [...debug_log.matchAll(/\[(?:jei|HadEnoughItems)\]: Registered +plugin: (.*) in (\d+) ms/g)]
       .map(/** @return {[string, number]} */([, pluginName, time]) => [pluginName, parseInt(time)/1000])
       .sort(([,a],[,b])=>b-a)
 
@@ -274,9 +274,11 @@ export default async function parseDebugLog(_options=argv) {
   const instantMods = time_arr.filter(m=>m[1]<0.1)
   const fastMods    = time_arr.filter(m=>m[1]>=0.1 && m[1]<=1.0)
   const otherMods   = time_arr.slice(pieMods).filter(m=>m[1]>1.0)
+
+  /** @type {[color: string, time: number, modName: string][]} */
   const modLoadArray = time_arr
     .slice(0, pieMods)
-    .map(/** @return {[string, number, string]} */([modName, total])=>[colorHash.hex(modName).slice(1), total, modName])
+    .map(([modName, total])=>[colorHash.hex(modName).slice(1), total, modName])
     .concat([
       ['444444', _(otherMods).sumBy('1'),   otherMods.length   + ' Other mods'],
       ['333333', _(fastMods).sumBy('1'),    fastMods.length    + ' \'Fast\' mods (load 1.0s - 0.1s)'],
@@ -284,12 +286,12 @@ export default async function parseDebugLog(_options=argv) {
     ])
 
   /**
-   * @param {string} entryName
+   * @param {string|RegExp} entryName
    * @param {string} description
    * @param {number} timeReduce
    */
   function spliceModLoadArray(entryName, description, timeReduce) {
-    const entry = modLoadArray.find(e=>e[2]===entryName)
+    const entry = modLoadArray.find(([,,modName])=>typeof entryName==='string' ? modName===entryName : entryName.test(modName))
     if(!entry) return
 
     if(!timeReduce || isNaN(timeReduce)) return
@@ -314,10 +316,10 @@ export default async function parseDebugLog(_options=argv) {
   }
 
   // Split JEI
-  spliceModLoadArray('Just Enough Items', 'Ingredient Filter', parseFloat(
-    debug_log.match(/\[jei\]: Building ingredient filter took (\d+\.\d+) s/)?.[1]
+  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Ingredient Filter', parseFloat(
+    debug_log.match(/\[(?:jei|HadEnoughItems)\]: Building ingredient filter took (\d+\.\d+) s/)?.[1]
   ))
-  spliceModLoadArray('Just Enough Items', 'Plugins', _.sumBy(jeiPlugins,'1'))
+  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Plugins', _.sumBy(jeiPlugins,'1'))
 
   // Split CraftTweaker
   try {
@@ -351,6 +353,7 @@ export default async function parseDebugLog(_options=argv) {
     .map(([m])=>m)
     .filter(m=>![
       'Just Enough Items',
+      'Had Enough Items',
       'Minecraft Forge',
       'Forge Mod Loader',
     ].includes(m))
