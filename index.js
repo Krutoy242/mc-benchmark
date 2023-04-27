@@ -108,6 +108,10 @@ const fml_steps_rgx = `(${fml_steps.map(l=>escapeRegex(l)).join('|')})`
  */
 const chart_obj = {}
 
+/**
+ * @param {string} debug_log Content of debug.log file
+ * @type {(debug_log: string) => [modName: string, loadTime: number, fileName: string][]}
+ */
 export const getModLoadTimeTuples = memoize(
 /**
  * @param {string} debug_log
@@ -275,15 +279,14 @@ export default async function parseDebugLog(_options=argv) {
   const fastMods    = time_arr.filter(m=>m[1]>=0.1 && m[1]<=1.0)
   const otherMods   = time_arr.slice(pieMods).filter(m=>m[1]>1.0)
 
-  /** @type {[color: string, time: number, modName: string][]} */
-  const modLoadArray = time_arr
+  const modLoadArray = /** @type {[color: string, time: number, modName: string][]} */(time_arr
     .slice(0, pieMods)
     .map(([modName, total])=>[colorHash.hex(modName).slice(1), total, modName])
     .concat([
       ['444444', _(otherMods).sumBy('1'),   otherMods.length   + ' Other mods'],
       ['333333', _(fastMods).sumBy('1'),    fastMods.length    + ' \'Fast\' mods (load 1.0s - 0.1s)'],
       ['222222', _(instantMods).sumBy('1'), instantMods.length + ' \'Instant\' mods (load %3C 0.1s)'],
-    ])
+    ]))
 
   /**
    * @param {string|RegExp} entryName

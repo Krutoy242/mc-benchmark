@@ -2,9 +2,13 @@
 /**
  *
  * @param {{[key:string]: any}} _options
+ * @returns {Promise<void>}
  */
 export default function parseDebugLog(_options?: {
     [key: string]: any;
-}): Promise<any>;
-export const getModLoadTimeTuples: any;
+}): Promise<void>;
+/**
+ * @type {(debug_log: string) => [modName: string, loadTime: number, fileName: string][]}
+ */
+export const getModLoadTimeTuples: (debug_log: string) => [modName: string, loadTime: number, fileName: string][];
 //# sourceMappingURL=index.d.ts.map
