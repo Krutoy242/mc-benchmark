@@ -257,9 +257,12 @@ export default async function parseDebugLog(_options=argv) {
   
 
   await log.begin('Looking for JEI plugins')
-  const jeiPlugins = [...debug_log.matchAll(/\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (.*) in (\d+) ms/g)]
+  let jeiPlugins = [...debug_log.matchAll(/\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (.*) in (\d+) ms/g)]
       .map(/** @return {[string, number]} */([, pluginName, time]) => [pluginName, parseInt(time)/1000])
       .sort(([,a],[,b])=>b-a)
+  
+  // Filter plugins with same name (happens with /ct jeiReload command)
+  jeiPlugins = jeiPlugins.filter(([name_a],i)=>!jeiPlugins.find(([name_b],j)=>j>i && name_a==name_b))
 
   const showPlugins = options.plugins
   var get_jei_plugins = memoizeWrap(()=>jeiPlugins
