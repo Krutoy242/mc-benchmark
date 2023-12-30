@@ -257,7 +257,7 @@ export default async function parseDebugLog(_options=argv) {
   
 
   await log.begin('Looking for JEI plugins')
-  const jeiPlugins = [...debug_log.matchAll(/\[(?:jei|HadEnoughItems)\]: Registered +plugin: (.*) in (\d+) ms/g)]
+  const jeiPlugins = [...debug_log.matchAll(/\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (.*) in (\d+) ms/g)]
       .map(/** @return {[string, number]} */([, pluginName, time]) => [pluginName, parseInt(time)/1000])
       .sort(([,a],[,b])=>b-a)
 
@@ -320,7 +320,7 @@ export default async function parseDebugLog(_options=argv) {
 
   // Split JEI
   spliceModLoadArray(/(Just|Had) Enough Items/i, 'Ingredient Filter', parseFloat(
-    debug_log.match(/\[(?:jei|HadEnoughItems)\]: Building ingredient filter took (\d+\.\d+) s/)?.[1]
+    debug_log.match(/\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (\d+\.\d+) s/)?.[1]
   ))
   spliceModLoadArray(/(Just|Had) Enough Items/i, 'Plugins', _.sumBy(jeiPlugins,'1'))
 
