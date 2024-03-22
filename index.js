@@ -250,7 +250,10 @@ export default async function parseDebugLog(_options=argv) {
     }
   }
 
-  const get_totalLoadTime    = memoize(() => Math.max(0,...[...debug_log.matchAll(/\[FML\]: Bar Finished: Loading took (.*)s/g)].map(([,v])=>parseFloat(v))))
+  const listOfLoadTime = [...debug_log.matchAll(
+    /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g
+  )].map(([,,v])=>parseFloat(v))
+  const get_totalLoadTime    = memoize(() => Math.max(0,...listOfLoadTime))
   const get_totalLoadTimeMin = memoize(() => {const min = Math.floor(get_totalLoadTime() / 60); return `${min}:${Math.floor(get_totalLoadTime()) - min*60}`})
   const get_totalModsTime    = memoize(() => _.sumBy(time_arr, '1'))
   const get_totalStuffTime   = memoize(() => get_totalLoadTime() - get_totalModsTime())
@@ -321,17 +324,23 @@ export default async function parseDebugLog(_options=argv) {
     )
   }
 
+  function toSeconds(groups) {
+    return groups.time == 's'
+      ? parseFloat(groups.num)
+      : parseFloat(groups.num) / 1000.0
+  }
+
   // Split JEI
-  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Ingredient Filter', parseFloat(
-    debug_log.match(/\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (\d+\.\d+) s/)?.[1]
-  ))
+  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Ingredient Filter', toSeconds(debug_log.match(
+    /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/
+  )?.groups))
   spliceModLoadArray(/(Just|Had) Enough Items/i, 'Plugins', _.sumBy(jeiPlugins,'1'))
 
   // Split CraftTweaker
   try {
     spliceModLoadArray('CraftTweaker2', 'Script Loading', parseFloat(
       loadText('crafttweaker.log')
-      .match(/\[INITIALIZATION\]\[CLIENT\]\[INFO\] Completed script loading in: (\d+)ms/m)[1]
+      .match(/\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/m)[1]
     ) / 1000)
   } catch (error) {
     await log.warn(`Can't open crafttweaker.log file "${options.ctlog}". Use option "--ctlog=path/to/crafttweaker.log"`)
