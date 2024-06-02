@@ -241,6 +241,10 @@ export default async function parseDebugLog(_options=argv) {
   }
 
   const time_arr = getModLoadTimeTuples(debug_log)
+    .filter(([m])=>![
+      'Minecraft Forge',
+      'Forge Mod Loader',
+    ].includes(m))
 
   if(!time_arr.length) {
     if(!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
@@ -369,8 +373,6 @@ export default async function parseDebugLog(_options=argv) {
     .filter(m=>![
       'Just Enough Items',
       'Had Enough Items',
-      'Minecraft Forge',
-      'Forge Mod Loader',
     ].includes(m))
     .slice(0,showDetails)
   const maxNameLen = _.maxBy(detailedNames, 'length').length
