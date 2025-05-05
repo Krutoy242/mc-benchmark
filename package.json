@@ -17,7 +17,7 @@
     "debug",
     "modpack"
   ],
-  "author": "Viacheslav Sazonov <krutoy242@gmail.com> (https://github.com/Krutoy242)",
+  "author": "Krutoy242 <krutoy242@gmail.com> (https://github.com/Krutoy242)",
   "license": "MIT",
   "type": "module",
   "dependencies": {
