@@ -1,12 +1,14 @@
 {
   "name": "mc-benchmark",
+  "type": "module",
   "version": "1.0.9",
-  "description": "Build charts about load time of Minecraft modpack.",
   "packageManager": "pnpm@10.10.0",
-  "main": "build/index.js",
-  "bin": "build/cli.js",
-  "scripts": {
-    "build": "rm -rf build && tsc"
+  "description": "Build charts about load time of Minecraft modpack.",
+  "author": "Krutoy242 <krutoy242@gmail.com> (https://github.com/Krutoy242)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Krutoy242/mc-benchmark"
   },
   "keywords": [
     "minecraft",
@@ -17,9 +19,15 @@
     "debug",
     "modpack"
   ],
-  "author": "Krutoy242 <krutoy242@gmail.com> (https://github.com/Krutoy242)",
-  "license": "Apache-2.0",
-  "type": "module",
+  "main": "build/index.js",
+  "bin": "build/cli.js",
+  "files": [
+    "README.md",
+    "build"
+  ],
+  "scripts": {
+    "build": "rm -rf build && tsc"
+  },
   "dependencies": {
     "chalk": "^5.4.1",
     "color": "^5.0.0",
@@ -27,23 +35,15 @@
     "memoizee": "^0.4.17",
     "numeral": "^2.0.6"
   },
-  "files": [
-    "README.md",
-    "build"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Krutoy242/mc-benchmark"
-  },
   "devDependencies": {
+    "@antfu/eslint-config": "^4.12.0",
     "@types/node": "^22.15.3",
     "@types/numeral": "^2.0.5",
     "@types/yargs": "^17.0.33",
+    "eslint": "^9.24.0",
+    "eslint-plugin-format": "^1.0.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
-    "vitest": "^3.1.3",
-    "@antfu/eslint-config": "^4.12.0",
-    "eslint": "^9.24.0",
-    "eslint-plugin-format": "^1.0.1"
+    "vitest": "^3.1.3"
   }
 }
