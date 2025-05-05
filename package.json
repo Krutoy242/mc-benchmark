@@ -2,11 +2,11 @@
   "name": "mc-benchmark",
   "version": "1.0.9",
   "description": "Build charts about load time of Minecraft modpack.",
-  "main": "index.js",
-  "bin": "index.js",
-  "types": "index.d.ts",
+  "packageManager": "pnpm@10.10.0",
+  "main": "build/index.js",
+  "bin": "build/cli.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rm -rf build && tsc"
   },
   "keywords": [
     "minecraft",
@@ -18,29 +18,29 @@
     "modpack"
   ],
   "author": "Krutoy242 <krutoy242@gmail.com> (https://github.com/Krutoy242)",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "dependencies": {
-    "chalk": "^5.2.0",
-    "color": "^4.2.3",
+    "chalk": "^5.4.1",
+    "color": "^5.0.0",
     "color-hash": "^2.0.2",
-    "lodash": "^4.17.21",
-    "memoizee": "^0.4.15",
-    "numeral": "^2.0.6",
-    "yargs": "^17.7.1"
+    "memoizee": "^0.4.17",
+    "numeral": "^2.0.6"
   },
   "files": [
-    "!examples"
+    "README.md",
+    "build"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Krutoy242/mc-benchmark"
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.194",
-    "@types/node": "^18.16.1",
-    "@types/numeral": "^2.0.2",
-    "@types/yargs": "^17.0.24",
-    "typescript": "^5.0.4"
+    "@types/node": "^22.15.3",
+    "@types/numeral": "^2.0.5",
+    "@types/yargs": "^17.0.33",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.3"
   }
 }
