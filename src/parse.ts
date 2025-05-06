@@ -4,8 +4,8 @@ import Color from 'color'
 import ColorHash from 'color-hash'
 
 // @ts-expect-error default
-// eslint-disable-next-line new-cap
-const colorHash = new (ColorHash.default)({ lightness: [0.2625, 0.375, 0.4875] })
+
+const colorHash = new (ColorHash.default ?? ColorHash)({ lightness: [0.2625, 0.375, 0.4875] })
 
 function escapeRegex(str: string) {
   return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
@@ -25,7 +25,7 @@ export const fmlSteps = [
 const fml_steps_rgx = `(?<stepName>${fmlSteps.map(l => escapeRegex(l)).join('|')})`
 
 export interface Mod {
-  totalTime: number
+  time: number
   loaderSteps: number[]
   fileName?: string
   color: string
@@ -59,7 +59,7 @@ export async function getMods(
       continue
 
     result[modName] ??= {
-      totalTime: 0,
+      time: 0,
       loaderSteps: fmlSteps.map(() => 0.0),
       color: colorHash.hex(modName).slice(1),
     }
@@ -67,7 +67,7 @@ export async function getMods(
     const stepIndex = fmlSteps.indexOf(stepName)
     const time = Number.parseFloat(timeStr)
     result[modName].loaderSteps[stepIndex] += time
-    result[modName].totalTime += time
+    result[modName].time += time
   }
 
   // Get file for every mod
@@ -125,7 +125,7 @@ export async function getMods(
 
   // Sort object
   result = Object.fromEntries(Object.entries(result)
-    .sort(([,{ totalTime: a }], [,{ totalTime: b }]) => b - a))
+    .sort(([,{ time: a }], [,{ time: b }]) => b - a))
 
   return result
 }
@@ -191,17 +191,17 @@ async function addParts(mods: ModStore, part: {
 
   const [modName, mod] = entry
 
-  if (mod.totalTime > part.time) {
-    mod.totalTime -= part.time
+  if (mod.time > part.time) {
+    // mod.time -= part.time
   }
   else {
     await log.info(
       `${chalk.hex('558855').bold(modName)} `
-      + `totalTime: ${chalk.hex('558855')(mod.totalTime)}ms, but `
+      + `totalTime: ${chalk.hex('558855')(mod.time)}s, but `
       + `'${chalk.hex('558855').bold(part.name)}' is `
-      + `${chalk.hex('558855')(part.time)}ms.`,
+      + `${chalk.hex('558855')(part.time)}s.`,
     )
-    mod.totalTime += part.time
+    mod.time += part.time
   }
 
   mod.parts ??= []

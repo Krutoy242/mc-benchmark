@@ -23,6 +23,11 @@ const argv = yargs(process.argv.slice(2))
     describe: 'Output file path',
     default: 'benchmark.md',
   })
+  .option('data', {
+    alias: 'a',
+    type: 'string',
+    describe: 'Output of gathered .json data',
+  })
   .option('nospaces', {
     alias: 'n',
     type: 'boolean',

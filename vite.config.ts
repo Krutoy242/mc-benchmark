@@ -1,4 +1,6 @@
 import { defineConfig } from 'vite'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+
 import pkg from './package.json'
 
 const deps = Object.keys(pkg.dependencies ?? {})
@@ -20,4 +22,14 @@ export default defineConfig({
   ssr: {
     noExternal: true,
   },
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'src/*.hbs',
+          dest: '.',
+        },
+      ],
+    }),
+  ],
 })

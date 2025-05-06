@@ -1,4 +1,3 @@
-
 ## Minecraft load time benchmark
 {{#if modpackName}}
 
@@ -10,7 +9,7 @@
 
 <p align="center" style="font-size:160%;">
 MC total load time:<br>
-{{mcLoadTime}} sec
+{{floor mcLoadTime}} sec
 <br>
 <sup><sub>(
 {{mcLoadTimeMin}} min
@@ -29,7 +28,7 @@ Note for image scripts:
   data: {
     datasets: [
       {{#each horizontalBar}}
-        {label:'{{label}}:', data: [{{value}}]},
+        {label: '{{label}}:', data: [{{num value}}]},
       {{/each}}
     ]
   },
@@ -71,11 +70,11 @@ Note for image scripts:
   data: {...
 `
 {{#each modLoadingTime}}
-{{color}} {{padStart 6 time}} {{name}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{{name}}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';').reduce((a, l) => {
-      l.match(/(\w{6}) *(\d*\.\d*)s (.*)/)
+      l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/)
       .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
       .forEach((s, i) =>
         [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
@@ -129,21 +128,19 @@ Note for image scripts:
   data: {...(() => {
     let a = { labels: [], datasets: [] };
 `
-{{#each loaderSteps}}
-{{index}} {{name}}{{#unless @last}};{{/unless}}
+{{#each fmlSteps}}
+{{@index}}: {{.}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';')
       .map(l => l.match(/\d: (.*)/).slice(1))
       .forEach(([name]) => a.datasets.push({ label: name, data: [] }));
 `
-                     {{#each loaderSteps}}      {{i}}{{/each}};
-{{#each loaderSteps}}
-  {{padEnd 30 name}}
-    {{#each values}}
-    {{padStart 6 (num .)}}{{#unless @last}}|{{/unless}}
-    {{/each}}
-  {{#unless @last}};{{/unless}}
+                             {{#each fmlSteps}}      {{@index}}{{/each}};
+{{#each (truncate loaderSteps 10)}}
+  {{padEnd 30 @key}}|
+    {{~#each .}}{{num .}}{{#unless @last}}|{{/unless}}{{/each}}
+  {{~#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';').slice(1)
@@ -176,8 +173,8 @@ Note for image scripts:
         }]
       };
 `
-{{#each jeiPlugins}}
-{{padStart 6 value}}: {{name}}{{#unless @last}};{{/unless}}
+{{#each (truncate jeiPlugins 12)}}
+{{num .}}: {{@key}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
         .split(';')
@@ -216,7 +213,7 @@ Note for image scripts:
             font: {size: 18}
           },
           {
-            text: [{{fmlStuff/total}},'s'].join(''),
+            text: '{{num fmlStuff.total}}s',
             color: 'rgba(128, 128, 128, 1)',
             font: {size: 22}
           }
@@ -237,11 +234,11 @@ Note for image scripts:
     };
 `
 {{#each fmlStuff/list}}
-{{color}} {{padStart 6 time}} {{name}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{name}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';')
-      .map(l => l.match(/(\w{6}) *(\d*\.\d*)s (.*)/))
+      .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/))
       .forEach(([, col, time, name]) => {
         a.labels.push([name, ' ', time, 's'].join(''));
         a.datasets[0].data.push(parseFloat(time));
@@ -251,5 +248,3 @@ Note for image scripts:
   })()}
 }"/>
 </p>
-
-<br>

@@ -1,4 +1,3 @@
-/* eslint-disable regexp/no-super-linear-backtracking */
 /**
  * @file Collect information about load time from Debug.log
  * and output it in .MD file
@@ -11,28 +10,17 @@ import type { Args } from './cli'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
-import numeral from 'numeral'
+import { compose } from './hbs'
 import logger from './log'
 import { fmlSteps, getFmlStuff, getJeiPlugins, getMcLoadTime, getMods } from './parse'
 
 //############################################################################
 //############################################################################
 
-// function num(n: string | number) {
-//   return numeral(typeof n == 'string' ? Number.parseFloat(n) : n).format('0.00').padStart(6)
-// }
-
 function secondsToMinutes(sec: number): string {
   const min = Math.floor(sec / 60)
   return `${min}:${String(Math.floor(sec) - min * 60).padStart(2, '0')}`
 }
-
-// ██╗███╗   ██╗██╗████████╗
-// ██║████╗  ██║██║╚══██╔══╝
-// ██║██╔██╗ ██║██║   ██║
-// ██║██║╚██╗██║██║   ██║
-// ██║██║ ╚████║██║   ██║
-// ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
 
 export default async function parseDebugLog(_options: Args) {
   const options = {
@@ -88,7 +76,7 @@ export default async function parseDebugLog(_options: Args) {
   }
 
   const mcLoadTime = getMcLoadTime(debug_log)
-  const modsTime = Object.values(mods).map(o => o.totalTime).reduce((acc, v) => acc + v)
+  const modsTime = Object.values(mods).map(o => o.time).reduce((acc, v) => acc + v)
 
   const jeiPlugins = getJeiPlugins(debug_log)
 
@@ -99,21 +87,24 @@ export default async function parseDebugLog(_options: Args) {
   interface PieMod {
     name: string
     color: string
-    totalTime: number
+    time: number
   }
 
-  const pie: PieMod[] = Object.entries(mods)
-    .map(([name, mod]) => ({ name, color: mod.color, totalTime: mod.totalTime }))
-    .slice(0, pieMods)
+  const pie: PieMod[] = []
 
-  const totalTimes = Object.values(mods).map(m => m.totalTime).slice(pieMods)
+  for (const [name, mod] of Object.entries(mods).slice(0, pieMods)) {
+    pie.push({ name, color: mod.color, time: mod.time })
+    ;(mod.parts ?? []).forEach(part => pie.push(part))
+  }
+
+  const totalTimes = Object.values(mods).map(m => m.time).slice(pieMods)
 
   function piePush(color: string, text: string, filter: (t: number) => boolean) {
     const otherMods = totalTimes.filter(filter)
     pie.push({
       name: `${otherMods.length} ${text}`,
       color,
-      totalTime: otherMods.reduce((a, v) => a + v),
+      time: otherMods.reduce((a, v) => a + v),
     })
   }
 
@@ -122,12 +113,11 @@ export default async function parseDebugLog(_options: Args) {
   piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
 
   const fmlStuff = getFmlStuff(debug_log)
-
   const loaderStuffTime = mcLoadTime - modsTime
   const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v)
   fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
-  const result = {
+  const data = {
     modpackName: options.modpack,
     mcLoadTime,
     mcLoadTimeMin: secondsToMinutes(mcLoadTime),
@@ -153,21 +143,31 @@ export default async function parseDebugLog(_options: Args) {
     },
   }
 
-  //############################################################################
-  //############################################################################
+  await log.begin('Composing output')
 
-  await log.begin('Writing file')
+  const composed = await compose(data, log)
 
   try {
-    saveText(
-      JSON.stringify(result, null, 2)
-        // prettify numerical arrays
-        .replace(/\[(\s*\d+(\.\d+)?,?\s+)+\]/g, m => m.replace(/\s+/g, '')),
-      options.output,
-    )
+    saveText(composed, options.output)
   }
   catch (error) {
     await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"\n\n${error}`)
+  }
+
+  if (options.data) {
+    await log.begin('Writing file')
+
+    const dataJson = JSON.stringify(data, null, 2)
+      // prettify numerical arrays
+      // eslint-disable-next-line regexp/no-super-linear-backtracking
+      .replace(/\[(\s*\d+(\.\d+)?,?\s+)+\]/g, m => m.replace(/\s+/g, ''))
+
+    try {
+      saveText(dataJson, options.data)
+    }
+    catch (error) {
+      await log.error(`Can't save output file "${options.data}". Use option "--data=path/to/data.json"\n\n${error}`)
+    }
   }
 
   log.result(`Load Time total: ${mcLoadTime}`)
