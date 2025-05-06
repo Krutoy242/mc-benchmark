@@ -35,12 +35,6 @@ const argv = yargs(process.argv.slice(2))
     describe: 'Count of detailed mods in main pie chart',
     default: 20,
   })
-  .option('plugins', {
-    alias: 'p',
-    type: 'number',
-    describe: 'Plugin count to show in \'JEI plugins\' section',
-    default: 15,
-  })
   .option('modpack', {
     alias: 'm',
     type: 'string',
@@ -51,12 +45,12 @@ const argv = yargs(process.argv.slice(2))
     describe: 'Minecraft directory to OPEN files from',
     default: './',
   })
-  .option('unlisted', {
-    alias: 'u',
-    type: 'boolean',
-    describe: 'Output unlisted tooks in console',
-    default: false,
-  })
+  // .option('unlisted', {
+  //   alias: 'u',
+  //   type: 'boolean',
+  //   describe: 'Output unlisted tooks in console',
+  //   default: false,
+  // })
   .version(false)
   .wrap(null)
   .parseSync()

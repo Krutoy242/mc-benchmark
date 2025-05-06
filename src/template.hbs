@@ -1,0 +1,255 @@
+
+## Minecraft load time benchmark
+{{#if modpackName}}
+
+### {{modpackName}}
+
+{{/if}}
+
+---
+
+<p align="center" style="font-size:160%;">
+MC total load time:<br>
+{{mcLoadTime}} sec
+<br>
+<sup><sub>(
+{{mcLoadTimeMin}} min
+)</sub></sup>
+</p>
+
+<br>
+<!-- 
+Note for image scripts:
+  - Newlines are ignored
+  - This characters cant be used: +<"%#
+-->
+<p align="center">
+<img src="https://quickchart.io/chart?w=400&h=30&c={
+  type: 'horizontalBar',
+  data: {
+    datasets: [
+      {{#each horizontalBar}}
+        {label:'{{label}}:', data: [{{value}}]},
+      {{/each}}
+    ]
+  },
+  options: {
+    scales: {
+      xAxes: [{display: false, stacked: true}],
+      yAxes: [{display: false, stacked: true}],
+    },
+    elements: {rectangle: {borderWidth: 2}},
+    legend: {display: false},
+    plugins: {datalabels: {color: 'white',formatter: (value, context) =>
+      [context.dataset.label, value].join(' ')
+    }}
+  }
+}"/>
+</p>
+
+<br>
+
+# Mods Loading Time
+
+<p align="center">
+<img src="https://quickchart.io/chart?w=400&h=300&c={
+  type: 'outlabeledPie',
+  options: {
+    cutoutPercentage: 25,
+    plugins: {
+      legend: !1,
+      outlabels: {
+        stretch: 5,
+        padding: 1,
+        text: (v,i)=>[
+          v.labels[v.dataIndex],' ',
+          (v.percent*1000|0)/10,
+          String.fromCharCode(37)].join('')
+      }
+    }
+  },
+  data: {...
+`
+{{#each modLoadingTime}}
+{{color}} {{padStart 6 time}} {{name}}{{#unless @last}};{{/unless}}
+{{/each}}
+`
+    .split(';').reduce((a, l) => {
+      l.match(/(\w{6}) *(\d*\.\d*)s (.*)/)
+      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
+      .forEach((s, i) =>
+        [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
+      );
+      return a
+    }, {
+      labels: [],
+      datasets: [{
+        backgroundColor: [],
+        data: [],
+        borderColor: 'rgba(22,22,22,0.3)',
+        borderWidth: 1
+      }]
+    })
+  }
+}"/>
+</p>
+
+<br>
+
+# Top Mods Details (except JEI, FML and Forge)
+
+<p align="center">
+<img src="https://quickchart.io/chart?w=400&h=450&c={
+  options: {
+    scales: {
+      xAxes: [{stacked: true}],
+      yAxes: [{stacked: true}],
+    },
+    plugins: {
+      datalabels: {
+        anchor: 'end',
+        align: 'top',
+        color: 'white',
+        backgroundColor: 'rgba(46, 140, 171, 0.6)',
+        borderColor: 'rgba(41, 168, 194, 1.0)',
+        borderWidth: 0.5,
+        borderRadius: 3,
+        padding: 0,
+        font: {size:10},
+        formatter: (v,ctx) =>
+          ctx.datasetIndex!=ctx.chart.data.datasets.length-1 ? null
+            : [((ctx.chart.data.datasets.reduce((a,b)=>a- -b.data[ctx.dataIndex],0)*10)|0)/10,'s'].join('')
+      },
+      colorschemes: {
+        scheme: 'office.Damask6'
+      }
+    }
+  },
+  type: 'bar',
+  data: {...(() => {
+    let a = { labels: [], datasets: [] };
+`
+{{#each loaderSteps}}
+{{index}} {{name}}{{#unless @last}};{{/unless}}
+{{/each}}
+`
+    .split(';')
+      .map(l => l.match(/\d: (.*)/).slice(1))
+      .forEach(([name]) => a.datasets.push({ label: name, data: [] }));
+`
+                     {{#each loaderSteps}}      {{i}}{{/each}};
+{{#each loaderSteps}}
+  {{padEnd 30 name}}
+    {{#each values}}
+    {{padStart 6 (num .)}}{{#unless @last}}|{{/unless}}
+    {{/each}}
+  {{#unless @last}};{{/unless}}
+{{/each}}
+`
+    .split(';').slice(1)
+      .map(l => l.split('|').map(s => s.trim()))
+      .forEach(([name, ...arr], i) => {
+        a.labels.push(name);
+        arr.forEach((v, j) => a.datasets[j].data[i] = v)
+      }); return a
+  })()}
+}"/>
+</p>
+
+<br>
+
+# TOP JEI Registered Plugis
+
+<p align="center">
+<img src="https://quickchart.io/chart?w=700&c={
+  options: {
+    elements: { rectangle: { borderWidth: 1 } },
+    legend: false
+  },
+  type: 'horizontalBar',
+    data: {...(() => {
+      let a = {
+        labels: [], datasets: [{
+          backgroundColor: 'rgba(0, 99, 132, 0.5)',
+          borderColor: 'rgb(0, 99, 132)',
+          data: []
+        }]
+      };
+`
+{{#each jeiPlugins}}
+{{padStart 6 value}}: {{name}}{{#unless @last}};{{/unless}}
+{{/each}}
+`
+        .split(';')
+        .map(l => l.split(':'))
+        .forEach(([time, name]) => {
+          a.labels.push(name);
+          a.datasets[0].data.push(time)
+        })
+        ; return a
+    })()
+  }
+}"/>
+</p>
+
+<br>
+
+# FML Stuff
+
+<p align="center">
+<img src="https://quickchart.io/chart?w=500&h=400&c={
+  options: {
+    rotation: Math.PI,
+    cutoutPercentage: 55,
+    plugins: {
+      legend: !1,
+      outlabels: {
+        stretch: 5,
+        padding: 1,
+        text: (v)=>v.labels
+      },
+      doughnutlabel: {
+        labels: [
+          {
+            text: 'FML stuff:',
+            color: 'rgba(128, 128, 128, 0.5)',
+            font: {size: 18}
+          },
+          {
+            text: [{{fmlStuff/total}},'s'].join(''),
+            color: 'rgba(128, 128, 128, 1)',
+            font: {size: 22}
+          }
+        ]
+      },
+    }
+  },
+  type: 'outlabeledPie',
+  data: {...(() => {
+    let a = {
+      labels: [],
+      datasets: [{
+        backgroundColor: [],
+        data: [],
+        borderColor: 'rgba(22,22,22,0.3)',
+        borderWidth: 2
+      }]
+    };
+`
+{{#each fmlStuff/list}}
+{{color}} {{padStart 6 time}} {{name}}{{#unless @last}};{{/unless}}
+{{/each}}
+`
+    .split(';')
+      .map(l => l.match(/(\w{6}) *(\d*\.\d*)s (.*)/))
+      .forEach(([, col, time, name]) => {
+        a.labels.push([name, ' ', time, 's'].join(''));
+        a.datasets[0].data.push(parseFloat(time));
+        a.datasets[0].backgroundColor.push([String.fromCharCode(35), col].join(''))
+      })
+      ; return a
+  })()}
+}"/>
+</p>
+
+<br>

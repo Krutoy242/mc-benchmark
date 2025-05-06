@@ -1,0 +1,228 @@
+import Color from 'color'
+import ColorHash from 'color-hash'
+
+// @ts-expect-error default
+// eslint-disable-next-line new-cap
+const colorHash = new (ColorHash.default)({ lightness: [0.2625, 0.375, 0.4875] })
+
+function escapeRegex(str: string) {
+  return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
+}
+
+export const fml_steps = [
+  'Construction - ',
+  'Loading Resources - FMLFileResourcePack:',
+  'PreInitialization - ',
+  'Initialization - ',
+  'InterModComms$IMC - ',
+  'PostInitialization - ',
+  'LoadComplete - ',
+  'ModIdMapping - ',
+]
+
+const fml_steps_rgx = `(?<stepName>${fml_steps.map(l => escapeRegex(l)).join('|')})`
+
+export interface Mod {
+  totalTime: number
+  loaderSteps: number[]
+  fileName?: string
+  color: string
+  parts?: Part[]
+}
+
+export interface Part {
+  name: string
+  color: string
+  time: number
+}
+
+export interface ModStore { [modName: string]: Mod }
+
+export function getMods(debug_log: string, crafttweaker_log?: string) {
+  let result: ModStore = {}
+
+  const fullSearchRgx = new RegExp(
+    `${escapeRegex('[Client thread/DEBUG] [FML]: Bar Step: ')}${fml_steps_rgx}(?<modName>.+) took (?<time>\\d+.\\d+)s`,
+    'gim',
+  )
+  for (const { groups } of debug_log.matchAll(fullSearchRgx)) {
+    const { stepName, modName, time: timeStr } = groups as { [key: string]: string }
+
+    // Skim Forge steps
+    if (['Minecraft Forge', 'Forge Mod Loader'].includes(modName))
+      continue
+
+    result[modName] ??= {
+      totalTime: 0,
+      loaderSteps: fml_steps.map(() => 0.0),
+      color: colorHash.hex(modName).slice(1),
+    }
+
+    const stepIndex = fml_steps.indexOf(stepName)
+    const time = Number.parseFloat(timeStr)
+    result[modName].loaderSteps[stepIndex] += time
+    result[modName].totalTime += time
+  }
+
+  // Get file for every mod
+  for (const { groups } of debug_log.matchAll(
+    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?<modName>[^:]+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
+  )) {
+    result[groups!.modName].fileName = groups!.fileName
+  }
+
+  // Sort object
+  result = Object.fromEntries(Object.entries(result)
+    .sort(([,{ totalTime: a }], [,{ totalTime: b }]) => b - a))
+
+  // -------------------------------------------
+  // Additional parts
+  // -------------------------------------------
+
+  addParts(result, {
+    name: 'Ingredient Filter',
+    rgx: /(Just|Had) Enough Items/i,
+    time: toSeconds(debug_log.match(
+      /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
+    )?.groups),
+  })
+
+  addParts(result, {
+    name: 'Plugins',
+    rgx: /(Just|Had) Enough Items/i,
+    time: getJeiPlugins(debug_log).map(p => p.time).reduce((a, v) => a + v),
+  })
+
+  if (crafttweaker_log) {
+    addParts(result, {
+      name: 'Script Loading',
+      rgx: 'CraftTweaker2',
+      time: Number.parseFloat(crafttweaker_log.match(
+        /\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/,
+      )?.[1] ?? '0') / 1000,
+    })
+  }
+
+  addParts(result, {
+    name: 'Oredict Melting',
+    rgx: 'Tinkers\' Construct',
+    time: Number.parseFloat(debug_log.match(
+      /Oredict melting recipes finished in (\d+\.\d+) ms/,
+    )?.[1] ?? '0') / 1000,
+  })
+
+  return result
+}
+
+export function getMcLoadTime(debug_log: string): number {
+  const listOfLoadTime = [...debug_log.matchAll(
+    /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g,
+  )].map(([,,v]) => Number.parseFloat(v))
+  return Math.max(0, ...listOfLoadTime)
+}
+
+export interface JeiPlugin {
+  name: string
+  time: number
+}
+
+let jeiPluginsCache: JeiPlugin[]
+
+export function getJeiPlugins(debug_log: string) {
+  if (jeiPluginsCache)
+    return jeiPluginsCache
+
+  const pluginRgx = /\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (?<name>.*) in (?<time>\d+) ms/g
+  const jeiPlugins: JeiPlugin[] = []
+  for (const { groups } of debug_log.matchAll(pluginRgx)) {
+    const { name, time } = groups as { [key: string]: string }
+
+    // Filter plugins with same name (happens with /ct jeiReload command)
+    if (jeiPlugins.find(o => o.name === name))
+      continue
+
+    jeiPlugins.push({ name, time: Number.parseInt(time) / 1000 })
+  }
+
+  const showPlugins = 15 // options.plugins
+  jeiPluginsCache = jeiPlugins
+    .slice(0, showPlugins)
+    .concat([{
+      name: `Other ${jeiPlugins.length - showPlugins} Plugins`,
+      time: jeiPlugins
+        .slice(showPlugins)
+        .map(o => o.time)
+        .reduce((a, v) => a + v),
+    }])
+
+  return jeiPluginsCache
+}
+
+function addParts(mods: ModStore, part: {
+  name: string
+  rgx: string | RegExp
+  time: number
+}) {
+  const entry = Object.entries(mods).find(([modName]) =>
+    typeof part.rgx === 'string'
+      ? modName === part.rgx
+      : part.rgx.test(modName))
+
+  if (!entry)
+    return
+
+  // eslint-disable-next-line unicorn/prefer-number-properties
+  if (!part.time || isNaN(part.time))
+    return
+
+  const [modName, mod] = entry
+
+  if (mod.totalTime > part.time)
+    mod.totalTime -= part.time
+
+  mod.parts ??= []
+  mod.parts.push({
+    color: Color(`#${mod.color}`).darken(0.1).hex().slice(1),
+    time: part.time,
+    name: `${modName} (${part.name})`,
+
+  })
+}
+
+function toSeconds(groups?: { [key: string]: string }) {
+  if (!groups)
+    return 0
+  return groups.time === 's'
+    ? Number.parseFloat(groups.num)
+    : Number.parseFloat(groups.num) / 1000.0
+}
+
+export function getFmlStuff(debug_log: string): Part[] {
+  const fmlStuffLookupsRgx = new RegExp(`(${
+    `Loading sounds
+    Loading Resource - SoundHandler
+    ModelLoader: blocks
+    ModelLoader: items
+    ModelLoader: baking
+    Applying remove recipe actions
+    Applying remove furnace recipe actions
+    Indexing ingredients`
+      .split('\n')
+      .map(l => escapeRegex(l.trim()))
+      .join('|')
+  })`, 'i')
+
+  const fmlStuffBars = [...debug_log.matchAll(
+    /\[Client thread\/DEBUG\] \[FML\]: Bar Finished: (.*) took (\d+\.\d+)s/g,
+  )]
+    .map(([, name, time]) => [name, Number.parseFloat(time)] as const)
+    .filter(([name]) => name.match(fmlStuffLookupsRgx))
+
+  let colPointer = Color('orange').rotate(-20).darken(0.4)
+
+  return fmlStuffBars.map(([name, time]) => ({
+    color: (colPointer = colPointer.rotate(4)).hex().slice(1),
+    name,
+    time,
+  }))
+}

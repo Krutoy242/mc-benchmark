@@ -1,6 +1,3 @@
-/* eslint-disable no-console */
-/* eslint-disable unicorn/prefer-number-properties */
-
 /**
  * @file Collect information about load time from Debug.log
  * and output it in .MD file
@@ -9,96 +6,28 @@
  * @link https://github.com/Krutoy242
  */
 
-// @ts-check
-
 import type { Args } from './cli'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import Color from 'color'
-import ColorHash from 'color-hash'
 import _ from 'lodash'
-import memoize from 'memoizee'
 
 import numeral from 'numeral'
 import logger from './log'
-
-// @ts-expect-error default
-// eslint-disable-next-line new-cap
-const colorHash = new (ColorHash.default)({ lightness: [0.2625, 0.375, 0.4875] })
-
-function escapeRegex(str: string) {
-  return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
-}
+import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods } from './parse'
 
 //############################################################################
 //############################################################################
-
-const fml_steps
-= `Construction - 
-Loading Resources - FMLFileResourcePack:
-PreInitialization - 
-Initialization - 
-InterModComms$IMC - 
-PostInitialization - 
-LoadComplete - 
-ModIdMapping - `
-  .split('\n')
-const fml_steps_rgx = `(${fml_steps.map(l => escapeRegex(l)).join('|')})`
-
-/**
- * Chart with loading time taken for each FML step
- */
-const chart_obj: { [mod: string]: number[] } = {}
-
-/**
- * @param debug_log Content of debug.log file
- */
-export const getModLoadTimeTuples: (debug_log: string) => [modName: string, loadTime: number, fileName: string][] = memoize(
-  (debug_log: string): [modName: string, loadTime: number, fileName: string][] => {
-    const fullSearchRgx = new RegExp(
-      `${escapeRegex('[Client thread/DEBUG] [FML]: Bar Step: ') + fml_steps_rgx}(.+) took (\\d+.\\d+)s`,
-      'gim',
-    )
-    for (const match of debug_log.matchAll(fullSearchRgx)) {
-      const [, step, mod, time] = match
-      chart_obj[mod] ??= fml_steps.map(() => 0.0)
-      chart_obj[mod][fml_steps.indexOf(step)] += Number.parseFloat(time)
-    }
-
-    const chart_arr = Object.entries(chart_obj)
-    chart_arr.sort(([,a], [,b]) => _.sum(b) - _.sum(a))
-
-    // Get file for every mod
-    const mod_fileNames: { [modName: string]: string } = {}
-    for (const { groups } of debug_log.matchAll(
-      // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/no-misleading-capturing-group
-      /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
-    )
-    ) {
-      mod_fileNames[groups!.modName] = groups!.fileName
-    }
-
-    return chart_arr.map(([modName, steps]) => [modName, _.sum(steps), mod_fileNames[modName]])
-  },
-  { primitive: true },
-)
-
-/**
- * @param {() => string[]} fn
- */
-const memoizeWrap = (fn: () => string[]) => memoize(() => `\`\n${fn().join(';\n')}\n\``)
-
-const get_fml_steps = memoizeWrap(() => fml_steps
-  // eslint-disable-next-line regexp/no-obscure-range
-  .map(s => s.replace(/[ -:]*$| - .*$/, ''))
-  .map((step, i) => `${i + 1}: ${step}`),
-)
 
 /**
  * Make pretty number
  */
 function num(n: string | number) {
   return numeral(typeof n == 'string' ? Number.parseFloat(n) : n).format('0.00').padStart(6)
+}
+
+function secondsToMinutes(sec: number): string {
+  const min = Math.floor(sec / 60)
+  return `${min}:${String(Math.floor(sec) - min * 60).padStart(2, '0')}`
 }
 
 // ██╗███╗   ██╗██╗████████╗
@@ -117,8 +46,19 @@ export default async function parseDebugLog(_options: Args) {
     ..._options,
   }
 
-  function loadText(fpath: string) {
-    return options.readFileSync(resolve(options.cwd ?? './', fpath), 'utf8')
+  const log: typeof logger = (options as any).defaultLogger ?? logger
+
+  async function loadText(fpath: string, hint: string) {
+    await log.begin(`Opening file "${fpath}"`)
+    let fileContent
+    try {
+      fileContent = options.readFileSync(resolve(options.cwd ?? './', fpath), 'utf8')
+    }
+    catch (err) {
+      await log.error(`Can't open file "${fpath}". ${hint}\n${err}`)
+      return undefined
+    }
+    return fileContent
   }
 
   function saveText(txt: string, filename: string) {
@@ -126,455 +66,103 @@ export default async function parseDebugLog(_options: Args) {
     options.writeFileSync(filename, txt)
   }
 
-  const log: typeof logger = (options as any).defaultLogger ?? logger
-
   //############################################################################
   // Numbers
 
-  await log.begin('Opening debug.log')
-  let debug_log
-  try {
-    debug_log = loadText(options.input)
-  }
-  catch (err) {
-    return await log.error(`Can't open input file "${options.input}". Use option "--input=path/to/debug.log"\n\n${err}`)
-  }
+  const debug_log = await loadText(options.input, 'Use option "--input=path/to/debug.log"')
+  if (!debug_log)
+    return
 
-  const time_arr = getModLoadTimeTuples(debug_log)
-    .filter(([m]) => ![
-      'Minecraft Forge',
-      'Forge Mod Loader',
-    ].includes(m))
+  const crafttweaker_log = await loadText(options.ctlog, 'Use option "--ctlog=path/to/crafttweker.log"')
 
-  if (!time_arr.length) {
+  const mods = getMods(debug_log, crafttweaker_log)
+
+  if (!Object.keys(mods)) {
     if (!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
-      return await log.error(`The file "${options.input}" does not contain rich debugging information. It is most likely not actual debug.log.\n\nHint:\nSome MC launchers disable generating of debug.log file by default. Find out how to enable it.`)
+      return await log.error(`The file "${options.input}" does not contain`
+        + ` rich debugging information. It is most likely not actual debug.log.`
+        + `\n\nHint:\nSome MC launchers disable generating of debug.log file by default.`
+        + ` Find out how to enable it.`)
     }
     else {
-      return await log.error(`The file "${options.input}" not full. Your Minecraft not loaded completely or file is corrupted.`)
+      return await log.error(`The file "${options.input}" not full.`
+        + ` Your Minecraft not loaded completely or file is corrupted.`)
     }
   }
 
-  const listOfLoadTime = [...debug_log.matchAll(
-    /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g,
-  )].map(([,,v]) => Number.parseFloat(v))
-  const get_totalLoadTime = memoize(() => Math.max(0, ...listOfLoadTime))
-  const get_totalLoadTimeMin = memoize(() => {
-    const min = Math.floor(get_totalLoadTime() / 60)
-    return `${min}:${Math.floor(get_totalLoadTime()) - min * 60}`
-  })
-  const get_totalModsTime = memoize(() => _.sumBy(time_arr, '1'))
-  const get_totalStuffTime = memoize(() => get_totalLoadTime() - get_totalModsTime())
+  const mcLoadTime = getMcLoadTime(debug_log)
+  const modsTime = Object.values(mods).map(o => o.totalTime).reduce((acc, v) => acc + v)
 
   await log.begin('Looking for JEI plugins')
-  let jeiPlugins = [...debug_log.matchAll(/\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (.*) in (\d+) ms/g)]
-    .map(([, pluginName, time]) => [pluginName, Number.parseInt(time) / 1000] as const)
-    .sort(([,a], [,b]) => b - a)
-
-  // Filter plugins with same name (happens with /ct jeiReload command)
-  jeiPlugins = jeiPlugins.filter(([name_a], i) => !jeiPlugins.find(([name_b], j) => j > i && name_a === name_b))
-
-  const showPlugins = options.plugins
-  const get_jei_plugins = memoizeWrap(() => jeiPlugins
-    .slice(0, showPlugins)
-    .concat([[
-      `Other ${jeiPlugins.length - showPlugins} Plugins`,
-      _.sumBy(jeiPlugins.slice(showPlugins), '1'),
-    ]])
-    .map(([a, b]) => `${num(b)}: ${a}`),
-  )
+  const jeiPlugins = getJeiPlugins(debug_log)
 
   //############################################################################
   // Chart 1
   await log.begin('Mods loading time')
   const pieMods = options.detailed
-  const instantMods = time_arr.filter(m => m[1] < 0.1)
-  const fastMods = time_arr.filter(m => m[1] >= 0.1 && m[1] <= 1.0)
-  const otherMods = time_arr.slice(pieMods).filter(m => m[1] > 1.0)
 
-  const modLoadArray = (time_arr
+  interface PieMod {
+    name: string
+    color: string
+    totalTime: number
+  }
+
+  const pie: PieMod[] = Object.entries(mods)
+    .map(([name, mod]) => ({ name, color: mod.color, totalTime: mod.totalTime }))
     .slice(0, pieMods)
-    .map(([modName, total]) => [colorHash.hex(modName).slice(1), total, modName])
-    .concat([
-      ['444444', _(otherMods).sumBy('1'), `${otherMods.length} Other mods`],
-      ['333333', _(fastMods).sumBy('1'), `${fastMods.length} 'Fast' mods (load 1.0s - 0.1s)`],
-      ['222222', _(instantMods).sumBy('1'), `${instantMods.length} 'Instant' mods (load %3C 0.1s)`],
-    ])) as [color: string, time: number, modName: string][]
 
-  function spliceModLoadArray(entryName: string | RegExp, description: string, timeReduce: number) {
-    const entry = modLoadArray.find(([,,modName]) => typeof entryName === 'string' ? modName === entryName : entryName.test(modName))
-    if (!entry)
-      return
+  const totalTimes = Object.values(mods).map(m => m.totalTime).slice(pieMods)
 
-    if (!timeReduce || isNaN(timeReduce))
-      return
-    const [eColor, eTime, eName] = entry
-
-    // Add time if second thread interfer calculating
-    let newTime = eTime - timeReduce
-    if (newTime < 0) {
-      newTime = entry[1]
-    }
-
-    modLoadArray.splice(
-      modLoadArray.indexOf(entry),
-      1,
-      [eColor, newTime, eName],
-      [
-        Color(`#${eColor}`).darken(0.1).hex().slice(1),
-        timeReduce,
-        `${eName} (${description})`,
-      ],
-    )
+  function piePush(color: string, text: string, filter: (t: number) => boolean) {
+    const otherMods = totalTimes.filter(filter)
+    pie.push({
+      name: `${otherMods.length} ${text}`,
+      color,
+      totalTime: otherMods.reduce((a, v) => a + v),
+    })
   }
 
-  function toSeconds(groups?: { [key: string]: string }) {
-    if (!groups)
-      return 0
-    return groups.time === 's'
-      ? Number.parseFloat(groups.num)
-      : Number.parseFloat(groups.num) / 1000.0
-  }
-
-  // Split JEI
-  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Ingredient Filter', toSeconds(debug_log.match(
-    /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
-  )?.groups))
-  spliceModLoadArray(/(Just|Had) Enough Items/i, 'Plugins', _.sumBy(jeiPlugins, '1'))
-
-  // Split CraftTweaker
-  try {
-    spliceModLoadArray('CraftTweaker2', 'Script Loading', Number.parseFloat(
-      loadText('crafttweaker.log')
-        .match(/\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/)?.[1] ?? '0',
-    ) / 1000)
-  }
-  catch (error) {
-    await log.warn(`Can't open crafttweaker.log file "${options.ctlog}". Use option "--ctlog=path/to/crafttweaker.log"\n\n${error}`)
-  }
-
-  // Split Tcon
-  spliceModLoadArray(
-    'Tinkers\' Construct',
-    'Oredict Melting',
-    Number.parseFloat(
-      debug_log.match(/Oredict melting recipes finished in (\d+\.\d+) ms/)?.[1] ?? '0',
-    ) / 1000,
-  )
-
-  const get_mods_loading_time_parsed = memoizeWrap(() => modLoadArray
-    .map(([col, time, name]) => `${col} ${num(time)}s ${name}`),
-  )
+  piePush('444444', `Other mods`, t => t > 1.0)
+  piePush('333333', `'Fast' mods (1.0s - 0.1s)`, t => t >= 0.1 && t <= 1.0)
+  piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
 
   //############################################################################
   // Chart 2
-  await log.begin('FML steps details')
-  const showDetails = 12
-  const detailedNames = time_arr
-    .map(([m]) => m)
-    .filter(m => ![
-      'Just Enough Items',
-      'Had Enough Items',
-    ].includes(m))
-    .slice(0, showDetails)
-  const maxNameLen = Math.max(...detailedNames.map(s => s.length))
-  const detailedLines = detailedNames.map(modName => `${
-    modName.padEnd(maxNameLen)
-  } |${
-    chart_obj[modName].map(num).join('|')
-  }`)
-
-  const get_fml_steps_details = memoizeWrap(() => [
-    ''.padEnd(maxNameLen + 2) + fml_steps.map((_, i) => (`${i + 1}  `).padStart(6)).join(' '),
-    ...detailedLines,
-  ])
 
   //############################################################################
   // Chart ??
   await log.begin('FML stuff')
-  const fmlStuffLookupsRgx = `(${
-    `Loading sounds
-  Loading Resource - SoundHandler
-  ModelLoader: blocks
-  ModelLoader: items
-  ModelLoader: baking
-  Applying remove recipe actions
-  Applying remove furnace recipe actions
-  Indexing ingredients`
-      .split('\n')
-      .map(l => escapeRegex(l.trim()))
-      .join('|')
-  })`
-  const fmlSomethingTook = [...debug_log.matchAll(/\[Client thread\/DEBUG\] \[FML\]: (.*) took (\d+\.\d+)s/g)]
-  const fmlStuffBars = fmlSomethingTook
-    .map(([, name, time]) => [name, Number.parseFloat(time)] as const)
-    .filter(([name]) => name.match(new RegExp(`Bar Finished: ${fmlStuffLookupsRgx}`)))
 
-  const otherFmlStuffTime = get_totalStuffTime() - _.sumBy(fmlStuffBars, '1')
-  fmlStuffBars.push(['Other', otherFmlStuffTime])
+  const fmlStuff = getFmlStuff(debug_log)
 
-  let colPointer = Color('orange').rotate(-20).darken(0.4)
+  const loaderStuffTime = mcLoadTime - modsTime
+  const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v)
+  fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
-  const get_fml_stuff_table = memoizeWrap(() =>
-    fmlStuffBars.map(([name, time], i) => `${
-      i !== fmlStuffBars.length - 1
-        ? (colPointer = colPointer.rotate(4)).hex().slice(1)
-        : '444444'
-    } ${
-      `${num(time)}s`
-    } ${
-      name.replace(/Bar Finished: /, '')
-    }`),
-  )
+  const result = {
+    modpackName: options.modpack,
+    mcLoadTime: num(mcLoadTime),
+    mcLoadTimeMin: secondsToMinutes(mcLoadTime),
 
-  // ████████╗███████╗███╗   ███╗██████╗ ██╗      █████╗ ████████╗███████╗███████╗
-  // ╚══██╔══╝██╔════╝████╗ ████║██╔══██╗██║     ██╔══██╗╚══██╔══╝██╔════╝██╔════╝
-  //    ██║   █████╗  ██╔████╔██║██████╔╝██║     ███████║   ██║   █████╗  ███████╗
-  //    ██║   ██╔══╝  ██║╚██╔╝██║██╔═══╝ ██║     ██╔══██║   ██║   ██╔══╝  ╚════██║
-  //    ██║   ███████╗██║ ╚═╝ ██║██║     ███████╗██║  ██║   ██║   ███████╗███████║
-  //    ╚═╝   ╚══════╝╚═╝     ╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝╚══════╝
+    horizontalBar: [
+      { label: 'MODS:', value: num(modsTime) },
+      { label: 'FML stuff:', value: num(loaderStuffTime) },
+    ],
 
-  /*
+    modLoadingTime: pie,
 
-  Note for image scripts:
-  - Newlines are ignored
-  - This characters cant be used: +<"%#
+    loaderSteps: Object.fromEntries(Object
+      .entries(mods)
+      .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
+      .map(([name, mod]) => [name, mod.loaderSteps])),
 
-  */
+    jeiPlugins,
 
-  /**
-   * @param name
-   * @param w Image width
-   * @param h Image height
-   * @param c JavaScript object in string form
-   */
-  function quickchartTemplate(name: string | undefined, w: number | undefined, h: number | undefined, c: string) {
-    return /* html */`${name ? `# ${name}` : ''}
-<p align="center">
-<img src="https://quickchart.io/chart?${w ? `w=${w}&` : ''}${h ? `h=${h}&` : ''}c=${
-  options.nospaces ? c.replace(/\s+/g, '%20') : c
-}"/>
-</p>
-
-<br>
-`
-  }
-
-  /**
-   * Create array of templates
-   */
-  const composeTempelates = () => [
-
-    /* html */`## Minecraft load time benchmark
-${options.modpack ? `\n### ${options.modpack}` : ''}
-
----
-
-<p align="center" style="font-size:160%;">
-MC total load time:<br>
-${`${num(get_totalLoadTime())} sec`}
-<br>
-<sup><sub>(
-${`${get_totalLoadTimeMin()} min`}
-)</sub></sup>
-</p>
-
-<br>
-`,
-
-    ///////////////////////////////////////////////////////////////
-    // Wide bar with two values
-    ///////////////////////////////////////////////////////////////
-    quickchartTemplate(undefined, 400, 30, /* js */`{
-  type: 'horizontalBar',
-  data: {
-    datasets: [
-      {label:      'MODS:', data: [${num(get_totalModsTime())}]},
-      {label: 'FML stuff:', data: [${num(get_totalStuffTime())}]}
-    ]
-  },
-  options: {
-    scales: {
-      xAxes: [{display: false,stacked: true}],
-      yAxes: [{display: false,stacked: true}],
+    fmlStuff: {
+      total: num(loaderStuffTime),
+      list: fmlStuff,
     },
-    elements: {rectangle: {borderWidth: 2}},
-    legend: {display: false,},
-    plugins: {datalabels: {color: 'white',formatter: (value, context) =>
-      [context.dataset.label, value].join(' ')
-    }}
   }
-}`),
-
-    ///////////////////////////////////////////////////////////////
-    // Pie Chart with most loaded mods
-    ///////////////////////////////////////////////////////////////
-    quickchartTemplate('Mods Loading Time', 400, 300, /* js */`{
-  type: 'outlabeledPie',
-  options: {
-    cutoutPercentage: 25,
-    plugins: {
-      legend: !1,
-      outlabels: {
-        stretch: 5,
-        padding: 1,
-        text: (v,i)=>[
-          v.labels[v.dataIndex],' ',
-          (v.percent*1000|0)/10,
-          String.fromCharCode(37)].join('')
-      }
-    }
-  },
-  data: {...
-${get_mods_loading_time_parsed()}
-    .split(';').reduce((a, l) => {
-      l.match(/(\\w{6}) *(\\d*\\.\\d*)s (.*)/)
-      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
-      .forEach((s, i) => 
-        [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
-      );
-      return a
-    }, {
-      labels: [],
-      datasets: [{
-        backgroundColor: [],
-        data: [],
-        borderColor: 'rgba(22,22,22,0.3)',
-        borderWidth: 1
-      }]
-    })
-  }
-}`),
-
-    ///////////////////////////////////////////////////////////////
-    // Colored Columns for each mod
-    ///////////////////////////////////////////////////////////////
-    quickchartTemplate('Top Mods Details (except JEI, FML and Forge)', 400, 450, /* js */`{
-  options: {
-    scales: {
-      xAxes: [{stacked: true}],
-      yAxes: [{stacked: true}],
-    },
-    plugins: {
-      datalabels: {
-        anchor: 'end',
-        align: 'top',
-        color: 'white',
-        backgroundColor: 'rgba(46, 140, 171, 0.6)',
-        borderColor: 'rgba(41, 168, 194, 1.0)',
-        borderWidth: 0.5,
-        borderRadius: 3,
-        padding: 0,
-        font: {size:10},
-        formatter: (v,ctx) => 
-          ctx.datasetIndex!=ctx.chart.data.datasets.length-1 ? null
-            : [((ctx.chart.data.datasets.reduce((a,b)=>a- -b.data[ctx.dataIndex],0)*10)|0)/10,'s'].join('')
-      },
-      colorschemes: {
-        scheme: 'office.Damask6'
-      }
-    }
-  },
-  type: 'bar',
-  data: {...(() => {
-    let a = { labels: [], datasets: [] };
-${get_fml_steps()}
-    .split(';')
-      .map(l => l.match(/\\d: (.*)/).slice(1))
-      .forEach(([name]) => a.datasets.push({ label: name, data: [] }));
-${get_fml_steps_details()}
-    .split(';').slice(1)
-      .map(l => l.split('|').map(s => s.trim()))
-      .forEach(([name, ...arr], i) => {
-        a.labels.push(name);
-        arr.forEach((v, j) => a.datasets[j].data[i] = v)
-      }); return a
-  })()}
-}`),
-
-    ///////////////////////////////////////////////////////////////
-    // Blue chart with horisontal bars
-    ///////////////////////////////////////////////////////////////
-    quickchartTemplate('TOP JEI Registered Plugis', 700, undefined, /* js */`{
-  options: {
-    elements: { rectangle: { borderWidth: 1 } },
-    legend: false
-  },
-  type: 'horizontalBar',
-    data: {...(() => {
-      let a = {
-        labels: [], datasets: [{
-          backgroundColor: 'rgba(0, 99, 132, 0.5)',
-          borderColor: 'rgb(0, 99, 132)',
-          data: []
-        }]
-      };
-${get_jei_plugins()}
-        .split(';')
-        .map(l => l.split(':'))
-        .forEach(([time, name]) => {
-          a.labels.push(name);
-          a.datasets[0].data.push(time)
-        })
-        ; return a
-    })()
-  }
-}`),
-
-    ///////////////////////////////////////////////////////////////
-    // Yellow donut with FML parts
-    ///////////////////////////////////////////////////////////////
-    quickchartTemplate('FML Stuff', 500, 400, /* js */`{
-  options: {
-    rotation: Math.PI,
-    cutoutPercentage: 55,
-    plugins: {
-      legend: !1,
-      outlabels: {
-        stretch: 5,
-        padding: 1,
-        text: (v)=>v.labels
-      },
-      doughnutlabel: {
-        labels: [
-          {
-            text: 'FML stuff:',
-            color: 'rgba(128, 128, 128, 0.5)',
-            font: {size: 18}
-          },
-          {
-            text: [${num(get_totalStuffTime())},'s'].join(''),
-            color: 'rgba(128, 128, 128, 1)',
-            font: {size: 22}
-          }
-        ]
-      },
-    }
-  },
-  type: 'outlabeledPie',
-  data: {...(() => {
-    let a = {
-      labels: [],
-      datasets: [{
-        backgroundColor: [],
-        data: [],
-        borderColor: 'rgba(22,22,22,0.3)',
-        borderWidth: 2
-      }]
-    };
-${get_fml_stuff_table()}
-    .split(';')
-      .map(l => l.match(/(\\w{6}) *(\\d*\\.\\d*)s (.*)/))
-      .forEach(([, col, time, name]) => {
-        a.labels.push([name, ' ', time, 's'].join(''));
-        a.datasets[0].data.push(parseFloat(time));
-        a.datasets[0].backgroundColor.push([String.fromCharCode(35), col].join(''))
-      })
-      ; return a
-  })()}
-}`),
-
-  ]
 
   //############################################################################
   //############################################################################
@@ -583,7 +171,7 @@ ${get_fml_stuff_table()}
 
   try {
     saveText(
-      composeTempelates().join('\n'),
+      JSON.stringify(result, null, 2),
       options.output,
     )
   }
@@ -591,19 +179,5 @@ ${get_fml_stuff_table()}
     await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"\n\n${error}`)
   }
 
-  options.unlisted && console.log(
-    `\nFML timings:\n${
-      [...debug_log.matchAll(/\[Client thread\/DEBUG\] \[FML\]: (.*) took (\d+\.\d+)s/g)]
-        .map(([, stepName, time]) => [stepName, Number.parseFloat(time)] as const)
-        .filter(([,time]) => time > 0.5)
-        .filter(([stepName]) =>
-          !stepName.match(new RegExp(`Bar Step: ${fml_steps_rgx}.*`))
-          && !stepName.match(new RegExp(`Bar Finished: ${fml_steps_rgx.replace(/ - /g, '')}`))
-          && !stepName.match(new RegExp(`Bar Finished: ${fmlStuffLookupsRgx}`)),
-        )
-        .map(([stepName, time]) => `${stepName.padEnd(60)}: ${num(time)}s`)
-        .join('\n')}`,
-  )
-
-  log.result(`Load Time total: ${get_totalLoadTime()}`)
+  log.result(`Load Time total: ${mcLoadTime}`)
 }
