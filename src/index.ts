@@ -11,75 +11,16 @@
 
 // @ts-check
 
+import type { Args } from './cli'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import process from 'node:process'
 import Color from 'color'
 import ColorHash from 'color-hash'
 import _ from 'lodash'
 import memoize from 'memoizee'
+
 import numeral from 'numeral'
-
-import yargs from 'yargs'
 import logger from './log'
-
-const argv = yargs(process.argv.slice(2))
-  .option('input', {
-    alias: 'i',
-    type: 'string',
-    describe: 'Debug.log path',
-    default: 'logs/debug.log',
-  })
-  .option('ctlog', {
-    alias: 'c',
-    type: 'string',
-    describe: 'crafttweaker.log path',
-    default: 'crafttweaker.log',
-  })
-  .option('output', {
-    alias: 'o',
-    type: 'string',
-    describe: 'Output file path',
-    default: 'benchmark.md',
-  })
-  .option('nospaces', {
-    alias: 'n',
-    type: 'boolean',
-    describe: 'Replace all space characters "\\s" in image code. Useful for posting on GitHub.',
-    default: false,
-  })
-  .option('detailed', {
-    alias: 'd',
-    type: 'number',
-    describe: 'Count of detailed mods in main pie chart',
-    default: 20,
-  })
-  .option('plugins', {
-    alias: 'p',
-    type: 'number',
-    describe: 'Plugin count to show in \'JEI plugins\' section',
-    default: 15,
-  })
-  .option('modpack', {
-    alias: 'm',
-    type: 'string',
-    describe: 'Modpack name in header',
-  })
-  .option('cwd', {
-    type: 'string',
-    describe: 'Minecraft directory to OPEN files from',
-    default: './',
-  })
-  .option('unlisted', {
-    alias: 'u',
-    type: 'boolean',
-    describe: 'Output unlisted tooks in console',
-    default: false,
-  })
-  .version(false)
-  .help('h')
-  .wrap(null)
-  .parseSync()
 
 // @ts-expect-error default
 // eslint-disable-next-line new-cap
@@ -130,6 +71,7 @@ export const getModLoadTimeTuples: (debug_log: string) => [modName: string, load
     // Get file for every mod
     const mod_fileNames: { [modName: string]: string } = {}
     for (const { groups } of debug_log.matchAll(
+      // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/no-misleading-capturing-group
       /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
     )
     ) {
@@ -147,6 +89,7 @@ export const getModLoadTimeTuples: (debug_log: string) => [modName: string, load
 const memoizeWrap = (fn: () => string[]) => memoize(() => `\`\n${fn().join(';\n')}\n\``)
 
 const get_fml_steps = memoizeWrap(() => fml_steps
+  // eslint-disable-next-line regexp/no-obscure-range
   .map(s => s.replace(/[ -:]*$| - .*$/, ''))
   .map((step, i) => `${i + 1}: ${step}`),
 )
@@ -165,9 +108,8 @@ function num(n: string | number) {
 // ██║██║ ╚████║██║   ██║
 // ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
 
-export default async function parseDebugLog(_options: { [key: string]: any }) {
+export default async function parseDebugLog(_options: Args) {
   const options = {
-    ...argv,
     mkdirSync,
     readFileSync,
     writeFileSync,
@@ -665,7 +607,3 @@ ${get_fml_stuff_table()}
 
   log.result(`Load Time total: ${get_totalLoadTime()}`)
 }
-
-// eslint-disable-next-line antfu/no-top-level-await
-if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href)
-  parseDebugLog(argv)
