@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+/* eslint-disable no-console */
+/* eslint-disable unicorn/prefer-number-properties */
 
 /**
  * @file Collect information about load time from Debug.log
@@ -12,7 +13,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import chalk from 'chalk'
+import process from 'node:process'
 import Color from 'color'
 import ColorHash from 'color-hash'
 import _ from 'lodash'
@@ -20,46 +21,47 @@ import memoize from 'memoizee'
 import numeral from 'numeral'
 
 import yargs from 'yargs'
+import logger from './log'
 
-const { argv } = yargs(process.argv.slice(2))
-  .option('i', {
-    alias: 'input',
+const argv = yargs(process.argv.slice(2))
+  .option('input', {
+    alias: 'i',
     type: 'string',
     describe: 'Debug.log path',
     default: 'logs/debug.log',
   })
-  .option('c', {
-    alias: 'ctlog',
+  .option('ctlog', {
+    alias: 'c',
     type: 'string',
     describe: 'crafttweaker.log path',
     default: 'crafttweaker.log',
   })
-  .option('o', {
-    alias: 'output',
+  .option('output', {
+    alias: 'o',
     type: 'string',
     describe: 'Output file path',
     default: 'benchmark.md',
   })
-  .option('n', {
-    alias: 'nospaces',
+  .option('nospaces', {
+    alias: 'n',
     type: 'boolean',
     describe: 'Replace all space characters "\\s" in image code. Useful for posting on GitHub.',
     default: false,
   })
-  .option('d', {
-    alias: 'detailed',
+  .option('detailed', {
+    alias: 'd',
     type: 'number',
     describe: 'Count of detailed mods in main pie chart',
     default: 20,
   })
-  .option('p', {
-    alias: 'plugins',
+  .option('plugins', {
+    alias: 'p',
     type: 'number',
     describe: 'Plugin count to show in \'JEI plugins\' section',
     default: 15,
   })
-  .option('m', {
-    alias: 'modpack',
+  .option('modpack', {
+    alias: 'm',
     type: 'string',
     describe: 'Modpack name in header',
   })
@@ -68,8 +70,8 @@ const { argv } = yargs(process.argv.slice(2))
     describe: 'Minecraft directory to OPEN files from',
     default: './',
   })
-  .option('u', {
-    alias: 'unlisted',
+  .option('unlisted', {
+    alias: 'u',
     type: 'boolean',
     describe: 'Output unlisted tooks in console',
     default: false,
@@ -77,12 +79,14 @@ const { argv } = yargs(process.argv.slice(2))
   .version(false)
   .help('h')
   .wrap(null)
+  .parseSync()
 
-// @ts-ignore
+// @ts-expect-error default
+// eslint-disable-next-line new-cap
 const colorHash = new (ColorHash.default)({ lightness: [0.2625, 0.375, 0.4875] })
 
-function escapeRegex(string) {
-  return string.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
+function escapeRegex(str: string) {
+  return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
 //############################################################################
@@ -101,28 +105,22 @@ ModIdMapping - `
 const fml_steps_rgx = `(${fml_steps.map(l => escapeRegex(l)).join('|')})`
 
 /**
- * Chart with loading time
- * @type {{[mod: string]: number[]}} Time taken for each FML step
+ * Chart with loading time taken for each FML step
  */
-const chart_obj = {}
+const chart_obj: { [mod: string]: number[] } = {}
 
 /**
- * @param {string} debug_log Content of debug.log file
- * @type {(debug_log: string) => [modName: string, loadTime: number, fileName: string][]}
+ * @param debug_log Content of debug.log file
  */
-export const getModLoadTimeTuples = memoize(
-/**
- * @param {string} debug_log
- * @return {[modName: string, loadTime: number, fileName: string][]}
- */
-  (debug_log) => {
+export const getModLoadTimeTuples: (debug_log: string) => [modName: string, loadTime: number, fileName: string][] = memoize(
+  (debug_log: string): [modName: string, loadTime: number, fileName: string][] => {
     const fullSearchRgx = new RegExp(
       `${escapeRegex('[Client thread/DEBUG] [FML]: Bar Step: ') + fml_steps_rgx}(.+) took (\\d+.\\d+)s`,
       'gim',
     )
     for (const match of debug_log.matchAll(fullSearchRgx)) {
       const [, step, mod, time] = match
-      chart_obj[mod] ??= Array.from({ length: fml_steps.length }).fill(0.0)
+      chart_obj[mod] ??= fml_steps.map(() => 0.0)
       chart_obj[mod][fml_steps.indexOf(step)] += Number.parseFloat(time)
     }
 
@@ -130,13 +128,12 @@ export const getModLoadTimeTuples = memoize(
     chart_arr.sort(([,a], [,b]) => _.sum(b) - _.sum(a))
 
     // Get file for every mod
-    /** @type {{[modName: string]: string}} */
-    const mod_fileNames = {}
+    const mod_fileNames: { [modName: string]: string } = {}
     for (const { groups } of debug_log.matchAll(
       /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
     )
     ) {
-      mod_fileNames[groups.modName] = groups.fileName
+      mod_fileNames[groups!.modName] = groups!.fileName
     }
 
     return chart_arr.map(([modName, steps]) => [modName, _.sum(steps), mod_fileNames[modName]])
@@ -147,49 +144,18 @@ export const getModLoadTimeTuples = memoize(
 /**
  * @param {() => string[]} fn
  */
-let memoizeWrap = fn => memoize(() => `\`\n${fn().join(';\n')}\n\``)
+const memoizeWrap = (fn: () => string[]) => memoize(() => `\`\n${fn().join(';\n')}\n\``)
 
-let get_fml_steps = memoizeWrap(() => fml_steps
+const get_fml_steps = memoizeWrap(() => fml_steps
   .map(s => s.replace(/[ -:]*$| - .*$/, ''))
   .map((step, i) => `${i + 1}: ${step}`),
 )
 
 /**
  * Make pretty number
- * @param {string | number} n Numeric-like value
  */
-function num(n) {
+function num(n: string | number) {
   return numeral(typeof n == 'string' ? Number.parseFloat(n) : n).format('0.00').padStart(6)
-}
-
-const defaultLogger = {
-  begin(s, steps) {
-    // @ts-ignore
-    this.done()
-    if (steps)
-      (this.steps = steps, this.stepSize = steps / 30)
-    process.stdout.write(`🔹 ${s.trim()}${steps ? ` [${steps}] ` : ''}`)
-    this.isUnfinishedTask = true
-  },
-  done(s = '') {
-    if (!this.isUnfinishedTask)
-      return
-    process.stdout.write(` ${chalk.gray(`${s} ✔`)}\n`)
-    this.isUnfinishedTask = false
-  },
-  step(s = '.') {
-    if (this.steps <= 30 || (this.steps-- % this.stepSize === 0)) {
-      process.stdout.write(s)
-    }
-  },
-  result(s = '') {
-    this.done()
-    process.stdout.write(`✔️ ${chalk.dim.green(`${s}`)}\n`)
-  },
-  warn(...s) { this.done(); process.stdout.write(`⚠️ ${chalk.dim.yellow(`${s.join('\t')}`)}\n`) },
-  error(...s) { this.done(); process.stdout.write(`🛑 ${chalk.dim.red (`${s.join('\t')}`)}\n`) },
-
-  isUnfinishedTask: false,
 }
 
 // ██╗███╗   ██╗██╗████████╗
@@ -199,37 +165,26 @@ const defaultLogger = {
 // ██║██║ ╚████║██║   ██║
 // ╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝
 
-/**
- *
- * @param {{[key:string]: any}} _options
- * @returns {Promise<void>}
- */
-export default async function parseDebugLog(_options = argv) {
-  /** @type {{[key:string]: any}} */
+export default async function parseDebugLog(_options: { [key: string]: any }) {
   const options = {
-    input: 'logs/debug.log',
-    ctlog: 'crafttweaker.log',
-    plugins: 15,
-    detailed: 20,
-    cwd: './',
+    ...argv,
     mkdirSync,
     readFileSync,
     writeFileSync,
-    output: 'benchmark.md',
 
     ..._options,
   }
 
-  function loadText(/** @type {string} */ fpath) {
+  function loadText(fpath: string) {
     return options.readFileSync(resolve(options.cwd ?? './', fpath), 'utf8')
   }
 
-  function saveText(txt, filename) {
+  function saveText(txt: string, filename: string) {
     options.mkdirSync(dirname(filename), { recursive: true })
     options.writeFileSync(filename, txt)
   }
 
-  const /** @type {typeof defaultLogger} */ log = options.defaultLogger ?? defaultLogger
+  const log: typeof logger = (options as any).defaultLogger ?? logger
 
   //############################################################################
   // Numbers
@@ -239,8 +194,8 @@ export default async function parseDebugLog(_options = argv) {
   try {
     debug_log = loadText(options.input)
   }
-  catch (error) {
-    return await log.error(`Can't open input file "${options.input}". Use option "--input=path/to/debug.log"`)
+  catch (err) {
+    return await log.error(`Can't open input file "${options.input}". Use option "--input=path/to/debug.log"\n\n${err}`)
   }
 
   const time_arr = getModLoadTimeTuples(debug_log)
@@ -262,20 +217,23 @@ export default async function parseDebugLog(_options = argv) {
     /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g,
   )].map(([,,v]) => Number.parseFloat(v))
   const get_totalLoadTime = memoize(() => Math.max(0, ...listOfLoadTime))
-  const get_totalLoadTimeMin = memoize(() => { const min = Math.floor(get_totalLoadTime() / 60); return `${min}:${Math.floor(get_totalLoadTime()) - min * 60}` })
+  const get_totalLoadTimeMin = memoize(() => {
+    const min = Math.floor(get_totalLoadTime() / 60)
+    return `${min}:${Math.floor(get_totalLoadTime()) - min * 60}`
+  })
   const get_totalModsTime = memoize(() => _.sumBy(time_arr, '1'))
   const get_totalStuffTime = memoize(() => get_totalLoadTime() - get_totalModsTime())
 
   await log.begin('Looking for JEI plugins')
   let jeiPlugins = [...debug_log.matchAll(/\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (.*) in (\d+) ms/g)]
-    .map(/** @return {[string, number]} */([, pluginName, time]) => [pluginName, Number.parseInt(time) / 1000])
+    .map(([, pluginName, time]) => [pluginName, Number.parseInt(time) / 1000] as const)
     .sort(([,a], [,b]) => b - a)
 
   // Filter plugins with same name (happens with /ct jeiReload command)
-  jeiPlugins = jeiPlugins.filter(([name_a], i) => !jeiPlugins.find(([name_b], j) => j > i && name_a == name_b))
+  jeiPlugins = jeiPlugins.filter(([name_a], i) => !jeiPlugins.find(([name_b], j) => j > i && name_a === name_b))
 
   const showPlugins = options.plugins
-  let get_jei_plugins = memoizeWrap(() => jeiPlugins
+  const get_jei_plugins = memoizeWrap(() => jeiPlugins
     .slice(0, showPlugins)
     .concat([[
       `Other ${jeiPlugins.length - showPlugins} Plugins`,
@@ -292,21 +250,16 @@ export default async function parseDebugLog(_options = argv) {
   const fastMods = time_arr.filter(m => m[1] >= 0.1 && m[1] <= 1.0)
   const otherMods = time_arr.slice(pieMods).filter(m => m[1] > 1.0)
 
-  const modLoadArray = /** @type {[color: string, time: number, modName: string][]} */(time_arr
+  const modLoadArray = (time_arr
     .slice(0, pieMods)
     .map(([modName, total]) => [colorHash.hex(modName).slice(1), total, modName])
     .concat([
       ['444444', _(otherMods).sumBy('1'), `${otherMods.length} Other mods`],
       ['333333', _(fastMods).sumBy('1'), `${fastMods.length} 'Fast' mods (load 1.0s - 0.1s)`],
       ['222222', _(instantMods).sumBy('1'), `${instantMods.length} 'Instant' mods (load %3C 0.1s)`],
-    ]))
+    ])) as [color: string, time: number, modName: string][]
 
-  /**
-   * @param {string|RegExp} entryName
-   * @param {string} description
-   * @param {number} timeReduce
-   */
-  function spliceModLoadArray(entryName, description, timeReduce) {
+  function spliceModLoadArray(entryName: string | RegExp, description: string, timeReduce: number) {
     const entry = modLoadArray.find(([,,modName]) => typeof entryName === 'string' ? modName === entryName : entryName.test(modName))
     if (!entry)
       return
@@ -333,8 +286,10 @@ export default async function parseDebugLog(_options = argv) {
     )
   }
 
-  function toSeconds(groups) {
-    return groups.time == 's'
+  function toSeconds(groups?: { [key: string]: string }) {
+    if (!groups)
+      return 0
+    return groups.time === 's'
       ? Number.parseFloat(groups.num)
       : Number.parseFloat(groups.num) / 1000.0
   }
@@ -349,11 +304,11 @@ export default async function parseDebugLog(_options = argv) {
   try {
     spliceModLoadArray('CraftTweaker2', 'Script Loading', Number.parseFloat(
       loadText('crafttweaker.log')
-        .match(/\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/)[1],
+        .match(/\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/)?.[1] ?? '0',
     ) / 1000)
   }
   catch (error) {
-    await log.warn(`Can't open crafttweaker.log file "${options.ctlog}". Use option "--ctlog=path/to/crafttweaker.log"`)
+    await log.warn(`Can't open crafttweaker.log file "${options.ctlog}". Use option "--ctlog=path/to/crafttweaker.log"\n\n${error}`)
   }
 
   // Split Tcon
@@ -361,11 +316,11 @@ export default async function parseDebugLog(_options = argv) {
     'Tinkers\' Construct',
     'Oredict Melting',
     Number.parseFloat(
-      debug_log.match(/Oredict melting recipes finished in (\d+\.\d+) ms/)?.[1],
+      debug_log.match(/Oredict melting recipes finished in (\d+\.\d+) ms/)?.[1] ?? '0',
     ) / 1000,
   )
 
-  let get_mods_loading_time_parsed = memoizeWrap(() => modLoadArray
+  const get_mods_loading_time_parsed = memoizeWrap(() => modLoadArray
     .map(([col, time, name]) => `${col} ${num(time)}s ${name}`),
   )
 
@@ -380,14 +335,14 @@ export default async function parseDebugLog(_options = argv) {
       'Had Enough Items',
     ].includes(m))
     .slice(0, showDetails)
-  const maxNameLen = _.maxBy(detailedNames, 'length').length
+  const maxNameLen = Math.max(...detailedNames.map(s => s.length))
   const detailedLines = detailedNames.map(modName => `${
     modName.padEnd(maxNameLen)
   } |${
     chart_obj[modName].map(num).join('|')
   }`)
 
-  let get_fml_steps_details = memoizeWrap(() => [
+  const get_fml_steps_details = memoizeWrap(() => [
     ''.padEnd(maxNameLen + 2) + fml_steps.map((_, i) => (`${i + 1}  `).padStart(6)).join(' '),
     ...detailedLines,
   ])
@@ -410,7 +365,7 @@ export default async function parseDebugLog(_options = argv) {
   })`
   const fmlSomethingTook = [...debug_log.matchAll(/\[Client thread\/DEBUG\] \[FML\]: (.*) took (\d+\.\d+)s/g)]
   const fmlStuffBars = fmlSomethingTook
-    .map(/** @return {[string, number]} */([, name, time]) => [name, Number.parseFloat(time)])
+    .map(([, name, time]) => [name, Number.parseFloat(time)] as const)
     .filter(([name]) => name.match(new RegExp(`Bar Finished: ${fmlStuffLookupsRgx}`)))
 
   const otherFmlStuffTime = get_totalStuffTime() - _.sumBy(fmlStuffBars, '1')
@@ -418,9 +373,9 @@ export default async function parseDebugLog(_options = argv) {
 
   let colPointer = Color('orange').rotate(-20).darken(0.4)
 
-  let get_fml_stuff_table = memoizeWrap(() =>
+  const get_fml_stuff_table = memoizeWrap(() =>
     fmlStuffBars.map(([name, time], i) => `${
-      i != fmlStuffBars.length - 1
+      i !== fmlStuffBars.length - 1
         ? (colPointer = colPointer.rotate(4)).hex().slice(1)
         : '444444'
     } ${
@@ -446,12 +401,12 @@ export default async function parseDebugLog(_options = argv) {
   */
 
   /**
-   *
-   * @param {number} w Image width
-   * @param {number} h Image height
-   * @param {string} c JavaScript object in string form
+   * @param name
+   * @param w Image width
+   * @param h Image height
+   * @param c JavaScript object in string form
    */
-  function quickchartTemplate(name, w, h, c) {
+  function quickchartTemplate(name: string | undefined, w: number | undefined, h: number | undefined, c: string) {
     return /* html */`${name ? `# ${name}` : ''}
 <p align="center">
 <img src="https://quickchart.io/chart?${w ? `w=${w}&` : ''}${h ? `h=${h}&` : ''}c=${
@@ -465,9 +420,8 @@ export default async function parseDebugLog(_options = argv) {
 
   /**
    * Create array of templates
-   * @returns {string[]}
    */
-  let composeTempelates = () => [
+  const composeTempelates = () => [
 
     /* html */`## Minecraft load time benchmark
 ${options.modpack ? `\n### ${options.modpack}` : ''}
@@ -489,7 +443,7 @@ ${`${get_totalLoadTimeMin()} min`}
     ///////////////////////////////////////////////////////////////
     // Wide bar with two values
     ///////////////////////////////////////////////////////////////
-    quickchartTemplate(null, 400, 30, /* js */`{
+    quickchartTemplate(undefined, 400, 30, /* js */`{
   type: 'horizontalBar',
   data: {
     datasets: [
@@ -599,7 +553,7 @@ ${get_fml_steps_details()}
     ///////////////////////////////////////////////////////////////
     // Blue chart with horisontal bars
     ///////////////////////////////////////////////////////////////
-    quickchartTemplate('TOP JEI Registered Plugis', 700, null, /* js */`{
+    quickchartTemplate('TOP JEI Registered Plugis', 700, undefined, /* js */`{
   options: {
     elements: { rectangle: { borderWidth: 1 } },
     legend: false
@@ -692,13 +646,13 @@ ${get_fml_stuff_table()}
     )
   }
   catch (error) {
-    await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"`)
+    await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"\n\n${error}`)
   }
 
   options.unlisted && console.log(
     `\nFML timings:\n${
       [...debug_log.matchAll(/\[Client thread\/DEBUG\] \[FML\]: (.*) took (\d+\.\d+)s/g)]
-        .map(/** @return {[string, number]} */([, stepName, time]) => [stepName, Number.parseFloat(time)])
+        .map(([, stepName, time]) => [stepName, Number.parseFloat(time)] as const)
         .filter(([,time]) => time > 0.5)
         .filter(([stepName]) =>
           !stepName.match(new RegExp(`Bar Step: ${fml_steps_rgx}.*`))
@@ -712,6 +666,6 @@ ${get_fml_stuff_table()}
   log.result(`Load Time total: ${get_totalLoadTime()}`)
 }
 
-// @ts-ignore
+// eslint-disable-next-line antfu/no-top-level-await
 if (import.meta.url === (await import('node:url')).pathToFileURL(process.argv[1]).href)
-  parseDebugLog()
+  parseDebugLog(argv)
