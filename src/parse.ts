@@ -1,3 +1,5 @@
+import type logger from './log'
+import chalk from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
 
@@ -9,7 +11,7 @@ function escapeRegex(str: string) {
   return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
-export const fml_steps = [
+export const fmlSteps = [
   'Construction - ',
   'Loading Resources - FMLFileResourcePack:',
   'PreInitialization - ',
@@ -20,7 +22,7 @@ export const fml_steps = [
   'ModIdMapping - ',
 ]
 
-const fml_steps_rgx = `(?<stepName>${fml_steps.map(l => escapeRegex(l)).join('|')})`
+const fml_steps_rgx = `(?<stepName>${fmlSteps.map(l => escapeRegex(l)).join('|')})`
 
 export interface Mod {
   totalTime: number
@@ -38,7 +40,11 @@ export interface Part {
 
 export interface ModStore { [modName: string]: Mod }
 
-export function getMods(debug_log: string, crafttweaker_log?: string) {
+export async function getMods(
+  debug_log: string,
+  crafttweaker_log: string | undefined,
+  log: typeof logger,
+) {
   let result: ModStore = {}
 
   const fullSearchRgx = new RegExp(
@@ -54,11 +60,11 @@ export function getMods(debug_log: string, crafttweaker_log?: string) {
 
     result[modName] ??= {
       totalTime: 0,
-      loaderSteps: fml_steps.map(() => 0.0),
+      loaderSteps: fmlSteps.map(() => 0.0),
       color: colorHash.hex(modName).slice(1),
     }
 
-    const stepIndex = fml_steps.indexOf(stepName)
+    const stepIndex = fmlSteps.indexOf(stepName)
     const time = Number.parseFloat(timeStr)
     result[modName].loaderSteps[stepIndex] += time
     result[modName].totalTime += time
@@ -66,50 +72,60 @@ export function getMods(debug_log: string, crafttweaker_log?: string) {
 
   // Get file for every mod
   for (const { groups } of debug_log.matchAll(
-    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?<modName>[^:]+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
+    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?!API: )(?<modName>[^:]+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
   )) {
-    result[groups!.modName].fileName = groups!.fileName
+    const modWithFile = result[groups!.modName]
+    if (modWithFile) {
+      modWithFile.fileName = groups!.fileName
+    }
+    else {
+      await log.info(
+        `"${chalk.hex('558855').bold(groups!.modName)}" `
+        + `from "${chalk.hex('558855')(groups!.fileName)}" `
+        + `file, but not a mod`,
+      )
+    }
   }
-
-  // Sort object
-  result = Object.fromEntries(Object.entries(result)
-    .sort(([,{ totalTime: a }], [,{ totalTime: b }]) => b - a))
 
   // -------------------------------------------
   // Additional parts
   // -------------------------------------------
 
-  addParts(result, {
+  await addParts(result, {
     name: 'Ingredient Filter',
     rgx: /(Just|Had) Enough Items/i,
     time: toSeconds(debug_log.match(
       /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
     )?.groups),
-  })
+  }, log)
 
-  addParts(result, {
+  await addParts(result, {
     name: 'Plugins',
     rgx: /(Just|Had) Enough Items/i,
-    time: getJeiPlugins(debug_log).map(p => p.time).reduce((a, v) => a + v),
-  })
+    time: Object.values(getJeiPlugins(debug_log)).reduce((a, v) => a + v),
+  }, log)
 
   if (crafttweaker_log) {
-    addParts(result, {
+    await addParts(result, {
       name: 'Script Loading',
       rgx: 'CraftTweaker2',
       time: Number.parseFloat(crafttweaker_log.match(
         /\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/,
       )?.[1] ?? '0') / 1000,
-    })
+    }, log)
   }
 
-  addParts(result, {
+  await addParts(result, {
     name: 'Oredict Melting',
     rgx: 'Tinkers\' Construct',
     time: Number.parseFloat(debug_log.match(
       /Oredict melting recipes finished in (\d+\.\d+) ms/,
     )?.[1] ?? '0') / 1000,
-  })
+  }, log)
+
+  // Sort object
+  result = Object.fromEntries(Object.entries(result)
+    .sort(([,{ totalTime: a }], [,{ totalTime: b }]) => b - a))
 
   return result
 }
@@ -121,19 +137,14 @@ export function getMcLoadTime(debug_log: string): number {
   return Math.max(0, ...listOfLoadTime)
 }
 
-export interface JeiPlugin {
-  name: string
-  time: number
-}
-
-let jeiPluginsCache: JeiPlugin[]
+let jeiPluginsCache: Record<string, number>
 
 export function getJeiPlugins(debug_log: string) {
   if (jeiPluginsCache)
     return jeiPluginsCache
 
   const pluginRgx = /\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (?<name>.*) in (?<time>\d+) ms/g
-  const jeiPlugins: JeiPlugin[] = []
+  const jeiPlugins: { name: string, time: number }[] = []
   for (const { groups } of debug_log.matchAll(pluginRgx)) {
     const { name, time } = groups as { [key: string]: string }
 
@@ -144,25 +155,28 @@ export function getJeiPlugins(debug_log: string) {
     jeiPlugins.push({ name, time: Number.parseInt(time) / 1000 })
   }
 
-  const showPlugins = 15 // options.plugins
-  jeiPluginsCache = jeiPlugins
-    .slice(0, showPlugins)
-    .concat([{
-      name: `Other ${jeiPlugins.length - showPlugins} Plugins`,
-      time: jeiPlugins
-        .slice(showPlugins)
-        .map(o => o.time)
-        .reduce((a, v) => a + v),
-    }])
+  jeiPlugins.sort(({ time: a }, { time: b }) => b - a)
+
+  // const showPlugins = 15 // options.plugins
+  jeiPluginsCache = Object.fromEntries(jeiPlugins
+    // .slice(0, showPlugins)
+    // .concat([{
+    //   name: `Other ${jeiPlugins.length - showPlugins} Plugins`,
+    //   time: jeiPlugins
+    //     .slice(showPlugins)
+    //     .map(o => o.time)
+    //     .reduce((a, v) => a + v),
+    // }])
+    .map(o => [o.name, o.time]))
 
   return jeiPluginsCache
 }
 
-function addParts(mods: ModStore, part: {
+async function addParts(mods: ModStore, part: {
   name: string
   rgx: string | RegExp
   time: number
-}) {
+}, log: typeof logger) {
   const entry = Object.entries(mods).find(([modName]) =>
     typeof part.rgx === 'string'
       ? modName === part.rgx
@@ -177,8 +191,18 @@ function addParts(mods: ModStore, part: {
 
   const [modName, mod] = entry
 
-  if (mod.totalTime > part.time)
+  if (mod.totalTime > part.time) {
     mod.totalTime -= part.time
+  }
+  else {
+    await log.info(
+      `${chalk.hex('558855').bold(modName)} `
+      + `totalTime: ${chalk.hex('558855')(mod.totalTime)}ms, but `
+      + `'${chalk.hex('558855').bold(part.name)}' is `
+      + `${chalk.hex('558855')(part.time)}ms.`,
+    )
+    mod.totalTime += part.time
+  }
 
   mod.parts ??= []
   mod.parts.push({

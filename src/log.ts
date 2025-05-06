@@ -26,6 +26,10 @@ const logger = {
     this.done()
     process.stdout.write(`✔️ ${chalk.dim.green(`${s}`)}\n`)
   },
+  info(s = '') {
+    this.done()
+    process.stdout.write(`${chalk.dim.green('ℹ')} ${chalk.dim.gray(`${s}`)}\n`)
+  },
   warn(...s: string[]) {
     this.done()
     process.stdout.write(`⚠️ ${chalk.dim.yellow(`${s.join('\t')}`)}\n`)

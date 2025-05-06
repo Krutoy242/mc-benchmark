@@ -26,6 +26,7 @@
     "dist"
   ],
   "scripts": {
+    "preview": "tsx src/cli.ts --input=D:/mc/E2E-E/logs/debug.log --output=src/template.hbs.json",
     "build": "vite build"
   },
   "dependencies": {
@@ -38,7 +39,6 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.12.0",
     "@types/color-hash": "^2.0.0",
-    "@types/lodash": "^4.17.16",
     "@types/memoizee": "^0.4.12",
     "@types/node": "^22.15.3",
     "@types/numeral": "^2.0.5",
