@@ -193,6 +193,10 @@ Note for image scripts:
 
 # FML Stuff
 
+Loading bars that usually not related to specific mods.
+
+⚠️ Shows only steps that took 1.0 sec or more.
+
 <p align="center">
 <img src="https://quickchart.io/chart?w=500&h=400&c={
   options: {
@@ -233,7 +237,7 @@ Note for image scripts:
       }]
     };
 `
-{{#each fmlStuff/list}}
+{{#each (filterTime fmlStuff.list 1.0)}}
 {{color}} {{num time}}s {{name}}{{#unless @last}};{{/unless}}
 {{/each}}
 `

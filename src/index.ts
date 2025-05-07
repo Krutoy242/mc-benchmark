@@ -115,7 +115,8 @@ export default async function parseDebugLog(_options: Args) {
   const fmlStuff = getFmlStuff(debug_log)
   const loaderStuffTime = mcLoadTime - modsTime
   const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v)
-  fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
+  if (otherFmlStuffTime > 0)
+    fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
   const data = {
     modpackName: options.modpack,
@@ -129,7 +130,7 @@ export default async function parseDebugLog(_options: Args) {
 
     modLoadingTime: pie,
 
-    fmlSteps: fmlSteps.map(s => s.replace(/ - .*/, '')),
+    fmlSteps: Object.keys(fmlSteps),
     loaderSteps: Object.fromEntries(Object
       .entries(mods)
       .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))

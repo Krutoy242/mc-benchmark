@@ -4,6 +4,7 @@ module.exports = {
   toLowerCase: text => String(text).toLowerCase(),
   padStart: (len, text) => String(text).padStart(len),
   padEnd: (len, text) => String(text).padEnd(len),
+  filterTime: (arr, treshold) => arr.filter(o => o.time >= treshold),
   truncate: (arr, len, note) => Array.isArray(arr)
     ? [...arr.slice(0, len), note]
     : Object.fromEntries(Object.entries(arr).slice(0, len)),

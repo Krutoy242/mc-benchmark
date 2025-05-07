@@ -11,18 +11,20 @@ function escapeRegex(str: string) {
   return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
-export const fmlSteps = [
-  'Construction - ',
-  'Loading Resources - FMLFileResourcePack:',
-  'PreInitialization - ',
-  'Initialization - ',
-  'InterModComms$IMC - ',
-  'PostInitialization - ',
-  'LoadComplete - ',
-  'ModIdMapping - ',
-]
+export const fmlSteps = {
+  'Construction': /Construction - /,
+  'Loading Resources': /Loading Resources - (?:FMLFileResourcePack:)?/,
+  'PreInitialization': /PreInitialization - /,
+  'Initialization': /Initialization - /,
+  'InterModComms': /InterModComms\$IMC - /,
+  'PostInitialization': /PostInitialization - /,
+  'LoadComplete': /LoadComplete - /,
+  'ModIdMapping': /ModIdMapping - /,
+}
 
-const fml_steps_rgx = `(?<stepName>${fmlSteps.map(l => escapeRegex(l)).join('|')})`
+const fml_steps_rgx = `(?<stepName>${
+  Object.values(fmlSteps).map(l => l.source).join('|')
+})`
 
 export interface Mod {
   time: number
@@ -60,11 +62,11 @@ export async function getMods(
 
     result[modName] ??= {
       time: 0,
-      loaderSteps: fmlSteps.map(() => 0.0),
+      loaderSteps: Object.keys(fmlSteps).map(() => 0.0),
       color: colorHash.hex(modName).slice(1),
     }
 
-    const stepIndex = fmlSteps.indexOf(stepName)
+    const stepIndex = Object.values(fmlSteps).findIndex(rgx => stepName.match(rgx))
     const time = Number.parseFloat(timeStr)
     result[modName].loaderSteps[stepIndex] += time
     result[modName].time += time
@@ -222,31 +224,30 @@ function toSeconds(groups?: { [key: string]: string }) {
 }
 
 export function getFmlStuff(debug_log: string): Part[] {
-  const fmlStuffLookupsRgx = new RegExp(`(${
-    `Loading sounds
-    Loading Resource - SoundHandler
-    ModelLoader: blocks
-    ModelLoader: items
-    ModelLoader: baking
-    Applying remove recipe actions
-    Applying remove furnace recipe actions
-    Indexing ingredients`
-      .split('\n')
-      .map(l => escapeRegex(l.trim()))
-      .join('|')
-  })`, 'i')
+  const bars: { [key: string]: number } = {}
 
-  const fmlStuffBars = [...debug_log.matchAll(
+  for (const [,nameRaw, timeRaw] of debug_log.matchAll(
     /\[Client thread\/DEBUG\] \[FML\]: Bar Finished: (.*) took (\d+\.\d+)s/g,
-  )]
-    .map(([, name, time]) => [name, Number.parseFloat(time)] as const)
-    .filter(([name]) => name.match(fmlStuffLookupsRgx))
+  )) {
+    const name = nameRaw
+      .replace(/\$.*/, '') // Metadata
+      .replace(/ - done/, '') // done message
+    const time = Number.parseFloat(timeRaw)
+    bars[name] ??= 0
+    bars[name] += time
+  }
+
+  const fmlStuffBars = Object.entries(bars)
+    .filter(([name]) => !Object.values(fmlSteps)
+      .some(rgx => name.match(rgx.source.replace(/ - .*/, ''))))
 
   let colPointer = Color('orange').rotate(-20).darken(0.4)
 
-  return fmlStuffBars.map(([name, time]) => ({
-    color: (colPointer = colPointer.rotate(4)).hex().slice(1),
-    name,
-    time,
-  }))
+  return fmlStuffBars
+    // .filter(([,time]) => time >= 0.01)
+    .map(([name, time]) => ({
+      color: (colPointer = colPointer.rotate(4)).hex().slice(1),
+      name,
+      time,
+    }))
 }
