@@ -80,8 +80,6 @@ export default async function parseDebugLog(_options: Args) {
 
   //############################################################################
   // Chart 1
-  const pieMods = options.detailed
-
   interface PieMod {
     name: string
     color: string
@@ -90,7 +88,7 @@ export default async function parseDebugLog(_options: Args) {
 
   const pie: PieMod[] = []
 
-  for (const [name, mod] of Object.entries(mods).slice(0, pieMods)) {
+  for (const [name, mod] of Object.entries(mods).slice(0, options.detailed)) {
     const modSlice = { name, color: mod.color, time: mod.time }
     pie.push(modSlice)
     ;(mod.parts ?? []).forEach((part) => {
@@ -99,7 +97,7 @@ export default async function parseDebugLog(_options: Args) {
     })
   }
 
-  const totalTimes = Object.values(mods).map(m => m.time).slice(pieMods)
+  const totalTimes = Object.values(mods).map(m => m.time).slice(options.detailed)
 
   function piePush(color: string, text: string, filter: (t: number) => boolean) {
     const otherMods = totalTimes.filter(filter)
@@ -162,7 +160,7 @@ export default async function parseDebugLog(_options: Args) {
 
   await log.begin('Composing output')
 
-  const composed = await compose(data, log)
+  const composed = await compose(data, log, options.template)
 
   try {
     saveText(composed, options.output)

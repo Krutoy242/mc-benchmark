@@ -4,9 +4,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Handlebars from 'handlebars'
 
-export async function compose(data: any, log: typeof logger): Promise<string> {
+export async function compose(data: any, log: typeof logger, nondefaultTemplate: string | undefined): Promise<string> {
   await log.begin('Loading Handlebars template')
-  const templatePath = path.resolve(
+  const templatePath = nondefaultTemplate || path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     'template.hbs',
   )
