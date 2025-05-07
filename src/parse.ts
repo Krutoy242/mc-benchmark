@@ -110,10 +110,15 @@ export async function getMods(
     `${escapeRegex('[Client thread/DEBUG] [FML]: Bar Step: ')}${fml_steps_rgx}(?<modName>.+) took (?<time>\\d+.\\d+)s`,
     'gim',
   )
-  for (const { groups } of debug_log.matchAll(fullSearchRgx)) {
+  const fullLog = [...debug_log.matchAll(fullSearchRgx)]
+
+  await log.begin('Parsing mods', fullLog.length)
+
+  for (const { groups } of fullLog) {
+    await log.step()
     const { stepName, modName, time: timeStr } = groups as { [key: string]: string }
 
-    // Skim Forge steps
+    // Skip Forge steps
     if (['Minecraft Forge', 'Forge Mod Loader'].includes(modName))
       continue
 
@@ -131,7 +136,8 @@ export async function getMods(
 
   // Get file for every mod
   for (const { groups } of debug_log.matchAll(
-    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?!API: )(?<modName>[^:]+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
+    // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/no-misleading-capturing-group
+    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?!API: )(?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
   )) {
     const modWithFile = result[groups!.modName]
     if (modWithFile) {

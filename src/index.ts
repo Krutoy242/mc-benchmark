@@ -75,9 +75,6 @@ export default async function parseDebugLog(_options: Args) {
     }
   }
 
-  const mcLoadTime = getMcLoadTime(debug_log)
-  const modsTime = Object.values(mods).map(o => o.time).reduce((acc, v) => acc + v)
-
   //############################################################################
   // Chart 1
   interface PieMod {
@@ -111,6 +108,9 @@ export default async function parseDebugLog(_options: Args) {
   piePush('444444', `Other mods`, t => t > 1.0)
   piePush('333333', `'Fast' mods (1.0s - 0.1s)`, t => t >= 0.1 && t <= 1.0)
   piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
+
+  const mcLoadTime = getMcLoadTime(debug_log)
+  const modsTime = pie.map(o => o.time).reduce((acc, v) => acc + v)
 
   const fmlStuff = getFmlStuff(debug_log)
   const loaderStuffTime = mcLoadTime - modsTime
