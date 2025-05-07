@@ -23,7 +23,7 @@ Note for image scripts:
   - This characters cant be used: +<"%#
 -->
 <p align="center">
-<img src="https://quickchart.io/chart?w=400&h=60&c={
+<img src="https://quickchart.io/chart.png?w=400&h=60&c={
   type: 'horizontalBar',
   data: {
     datasets: [
@@ -74,9 +74,10 @@ Note for image scripts:
 # Mods Loading Time
 
 <p align="center">
-<img src="https://quickchart.io/chart?w=400&h=300&c={
+<img src="https://quickchart.io/chart.png?w=400&h=300&c={
   type: 'outlabeledPie',
   options: {
+    rotation: Math.PI,
     cutoutPercentage: 25,
     plugins: {
       legend: !1,
@@ -93,11 +94,11 @@ Note for image scripts:
   data: {...
 `
 {{#each modLoadingTime}}
-{{color}} {{num time}}s {{{name}}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{{wordWrap name}}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';').reduce((a, l) => {
-      l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/)
+      l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s)
       .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
       .forEach((s, i) =>
         [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
@@ -121,7 +122,7 @@ Note for image scripts:
 # Top Mods Details (except JEI, FML and Forge)
 
 <p align="center">
-<img src="https://quickchart.io/chart?w=400&h=450&c={
+<img src="https://quickchart.io/chart.png?w=400&h=450&c={
   options: {
     scales: {
       xAxes: [{stacked: true}],
@@ -181,7 +182,7 @@ Note for image scripts:
 # TOP JEI Registered Plugis
 
 <p align="center">
-<img src="https://quickchart.io/chart?w=700&c={
+<img src="https://quickchart.io/chart.png?w=700&c={
   options: {
     elements: { rectangle: { borderWidth: 1 } },
     legend: false
@@ -197,7 +198,7 @@ Note for image scripts:
       };
 `
 {{#each (truncate jeiPlugins 12)}}
-{{num .}}: {{@key}}{{#unless @last}};{{/unless}}
+{{padEnd 5 .}}: {{@key}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
         .split(';')
@@ -221,9 +222,9 @@ Loading bars that usually not related to specific mods.
 ⚠️ Shows only steps that took 1.0 sec or more.
 
 <p align="center">
-<img src="https://quickchart.io/chart?w=500&h=400&c={
+<img src="https://quickchart.io/chart.png?w=500&h=400&c={
   options: {
-    rotation: Math.PI,
+    rotation: Math.PI*1.125,
     cutoutPercentage: 55,
     plugins: {
       legend: !1,
@@ -261,11 +262,11 @@ Loading bars that usually not related to specific mods.
     };
 `
 {{#each (filterTime fmlStuff.list 1.0)}}
-{{color}} {{num time}}s {{name}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{wordWrap name}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';')
-      .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/))
+      .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s))
       .forEach(([, col, time, name]) => {
         a.labels.push([name, ' ', time, 's'].join(''));
         a.datasets[0].data.push(parseFloat(time));

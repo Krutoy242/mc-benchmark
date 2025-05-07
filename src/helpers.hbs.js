@@ -5,6 +5,7 @@ module.exports = {
   padStart: (len, text) => String(text).padStart(len),
   padEnd: (len, text) => String(text).padEnd(len),
   filterTime: (arr, treshold) => arr.filter(o => o.time >= treshold),
+  wordWrap: text => text.length > 15 ? text.split(/(?<=.{9})\s(?=\S{5})/).join('\\n') : text,
   truncate: (arr, len, note) => Array.isArray(arr)
     ? [...arr.slice(0, len), note]
     : Object.fromEntries(Object.entries(arr).slice(0, len)),

@@ -78,8 +78,6 @@ export default async function parseDebugLog(_options: Args) {
   const mcLoadTime = getMcLoadTime(debug_log)
   const modsTime = Object.values(mods).map(o => o.time).reduce((acc, v) => acc + v)
 
-  const jeiPlugins = getJeiPlugins(debug_log)
-
   //############################################################################
   // Chart 1
   const pieMods = options.detailed
@@ -93,8 +91,12 @@ export default async function parseDebugLog(_options: Args) {
   const pie: PieMod[] = []
 
   for (const [name, mod] of Object.entries(mods).slice(0, pieMods)) {
-    pie.push({ name, color: mod.color, time: mod.time })
-    ;(mod.parts ?? []).forEach(part => pie.push(part))
+    const modSlice = { name, color: mod.color, time: mod.time }
+    pie.push(modSlice)
+    ;(mod.parts ?? []).forEach((part) => {
+      modSlice.time -= part.time
+      pie.push(part)
+    })
   }
 
   const totalTimes = Object.values(mods).map(m => m.time).slice(pieMods)
@@ -120,6 +122,18 @@ export default async function parseDebugLog(_options: Args) {
 
   const timeline = getTimeline(debug_log)
 
+  // Remove FML steps without time
+  const filteredLoaderSteps = Object
+    .entries(mods)
+    .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
+  const fmlStepsTotal = [...filteredLoaderSteps[0][1].loaderSteps]
+  filteredLoaderSteps.forEach(([,{ loaderSteps }], i) => {
+    if (i === 0)
+      return
+    loaderSteps.forEach((n, j) => fmlStepsTotal[j] += n)
+  })
+  const fmlStepFilter = fmlStepsTotal.map(n => n > 0)
+
   const data = {
     modpackName: options.modpack,
     mcLoadTime,
@@ -129,13 +143,16 @@ export default async function parseDebugLog(_options: Args) {
 
     modLoadingTime: pie,
 
-    fmlSteps: Object.keys(fmlSteps),
-    loaderSteps: Object.fromEntries(Object
-      .entries(mods)
-      .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
-      .map(([name, mod]) => [name, mod.loaderSteps])),
+    fmlSteps: [...Object.keys(fmlSteps).filter((_, i) => fmlStepFilter[i]), 'Other'],
+    loaderSteps: Object.fromEntries(filteredLoaderSteps.map(([name, mod]) => [
+      name,
+      [
+        ...mod.loaderSteps.filter((_, i) => fmlStepFilter[i]),
+        mod.parts?.reduce((a, v) => a + v.time, 0) ?? 0,
+      ],
+    ])),
 
-    jeiPlugins,
+    jeiPlugins: getJeiPlugins(debug_log),
 
     fmlStuff: {
       total: loaderStuffTime,

@@ -151,7 +151,7 @@ export async function getMods(
   // -------------------------------------------
 
   await addParts(result, {
-    name: 'Ingredient Filter',
+    name: '[JEI Ingredient Filter]',
     rgx: /(Just|Had) Enough Items/i,
     time: toSeconds(debug_log.match(
       /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
@@ -159,14 +159,22 @@ export async function getMods(
   }, log)
 
   await addParts(result, {
-    name: 'Plugins',
+    name: '[JEI Plugins]',
     rgx: /(Just|Had) Enough Items/i,
     time: Object.values(getJeiPlugins(debug_log)).reduce((a, v) => a + v),
   }, log)
 
+  await addParts(result, {
+    name: '[VF Sprite preload]',
+    rgx: /VintageFix/i,
+    time: Number.parseFloat(debug_log.match(
+      /\[Client thread\/INFO\] \[VintageFix\]: Preloaded \d+ sprites in (\d+(?:\.\d+)?) s/,
+    )![1]),
+  }, log)
+
   if (crafttweaker_log) {
     await addParts(result, {
-      name: 'Script Loading',
+      name: '[CT Script Loading]',
       rgx: 'CraftTweaker2',
       time: Number.parseFloat(crafttweaker_log.match(
         /\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/,
@@ -175,12 +183,22 @@ export async function getMods(
   }
 
   await addParts(result, {
-    name: 'Oredict Melting',
-    rgx: 'Tinkers\' Construct',
+    name: '[Oredict Melting]',
+    rgx: /Tinkers' Construct|Tinkers' Antique/,
     time: Number.parseFloat(debug_log.match(
       /Oredict melting recipes finished in (\d+\.\d+) ms/,
     )?.[1] ?? '0') / 1000,
   }, log)
+
+  const lines = debug_log.split('\n')
+  const duration = logLineDuration(lines, '\\[tconstruct-TextureGen\\]: Generated \\d+ Textures for Materials')
+  if (duration > 0) {
+    await addParts(result, {
+      name: '[TCon Textures]',
+      rgx: /^Tinkers' Construct|Tinkers' Antique/,
+      time: duration,
+    }, log)
+  }
 
   // Sort object
   result = Object.fromEntries(Object.entries(result)
@@ -234,39 +252,43 @@ async function addParts(mods: ModStore, part: {
   rgx: string | RegExp
   time: number
 }, log: typeof logger) {
+  // eslint-disable-next-line unicorn/prefer-number-properties
+  if (!part.time || isNaN(part.time)) {
+    return await log.info(`Didnt add mod `
+      + `"${chalk.hex('c2aa0e')(part.name)}" part of mod `
+      + `${chalk.hex('94852e')(part.rgx)} since it took 0 sec or less`)
+  }
+
   const entry = Object.entries(mods).find(([modName]) =>
     typeof part.rgx === 'string'
       ? modName === part.rgx
       : part.rgx.test(modName))
 
-  if (!entry)
-    return
-
-  // eslint-disable-next-line unicorn/prefer-number-properties
-  if (!part.time || isNaN(part.time))
-    return
+  if (!entry) {
+    return await log.warn(`Could not found mod `
+      + `"${chalk.hex('c2aa0e')(part.name)}" with regex `
+      + `${chalk.hex('94852e')(part.rgx)}`)
+  }
 
   const [modName, mod] = entry
 
-  if (mod.time > part.time) {
-    // mod.time -= part.time
-  }
-  else {
+  if (mod.time + part.time < 0) {
     await log.info(
       `${chalk.hex('558855').bold(modName)} `
       + `totalTime: ${chalk.hex('558855')(mod.time)}s, but `
       + `'${chalk.hex('558855').bold(part.name)}' is `
       + `${chalk.hex('558855')(part.time)}s.`,
     )
+  }
+  else {
     mod.time += part.time
   }
 
   mod.parts ??= []
   mod.parts.push({
-    color: Color(`#${mod.color}`).darken(0.1).hex().slice(1),
+    color: Color(`#${mod.color}`).darken(0.15).hex().slice(1),
     time: part.time,
-    name: `${modName} (${part.name})`,
-
+    name: part.name,
   })
 }
 
@@ -305,4 +327,25 @@ export function getFmlStuff(debug_log: string): Part[] {
       name,
       time,
     }))
+}
+
+function logLineDuration(lines: string[], rgxText: string): number {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const currTime = line.match(
+      new RegExp(`^\\[(\\d+:\\d+:\\d+)\\] \\[[^\\]]+\\] ${rgxText}`),
+    )?.[1]
+    if (!currTime)
+      continue
+    for (let j = i - 1; j >= 0; j--) {
+      const prevTime = lines[j].match(/^\[(\d+:\d+:\d+)\]/)?.[1]
+      if (!prevTime)
+        continue
+      const diffTime = timeToSeconds(currTime) - timeToSeconds(prevTime)
+      if (diffTime > 0)
+        return diffTime
+    }
+    break
+  }
+  return 0
 }
