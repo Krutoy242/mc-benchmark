@@ -42,6 +42,63 @@ export interface Part {
 
 export interface ModStore { [modName: string]: Mod }
 
+// ------------------------------------------------
+const mcFinishLoadingRgx = /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g
+
+function timeToSeconds(timeStr: string): number {
+  const [hours, minutes, seconds] = timeStr.split(':').map(Number)
+  return hours * 3600 + minutes * 60 + seconds
+}
+
+export function getTimeline(debug_log: string) {
+  const timelineSteps: { [key: string]: { rgx: RegExp, stamp?: string } } = {
+    Mixins: {
+      rgx: /\[Client thread\/INFO\] \[FML\]: -- System Details --/,
+      stamp: 'Window appear',
+    },
+    // Stuff: {
+    //   rgx: /Sending event FMLConstructionEvent to mod minecraft/,
+    // },
+    Construction: {
+      rgx: /Sending event FMLPreInitializationEvent to mod minecraft/,
+    },
+    PreInit: {
+      rgx: /Sending event FMLInitializationEvent to mod minecraft/,
+    },
+    // Init: {
+    //   rgx: /\[Foundation\]/,
+    // },
+    Init: {
+      rgx: mcFinishLoadingRgx,
+    },
+  }
+
+  const lines = debug_log.split('\n')
+  const timeline: [name: string, time: number, stamp?: string][] = []
+
+  const timeStampRgx = /^\[(\d+:\d+:\d+)\] /
+  const prevTimeStamp = debug_log.match(timeStampRgx)![1]
+  let prevMoment = timeToSeconds(prevTimeStamp)
+  let pointer = 0
+
+  for (const [name, { rgx, stamp }] of Object.entries(timelineSteps)) {
+    for (let i = pointer; i < lines.length; i++) {
+      const line = lines[i]
+      if (!line.match(rgx))
+        continue
+
+      const timeStamp = line.match(timeStampRgx)![1]
+      const moment = timeToSeconds(timeStamp)
+      timeline.push([name, moment - prevMoment, stamp])
+      prevMoment = moment
+      pointer = i + 1
+      break
+    }
+  }
+
+  return timeline
+}
+
 export async function getMods(
   debug_log: string,
   crafttweaker_log: string | undefined,
@@ -133,9 +190,7 @@ export async function getMods(
 }
 
 export function getMcLoadTime(debug_log: string): number {
-  const listOfLoadTime = [...debug_log.matchAll(
-    /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g,
-  )].map(([,,v]) => Number.parseFloat(v))
+  const listOfLoadTime = [...debug_log.matchAll(mcFinishLoadingRgx)].map(([,,v]) => Number.parseFloat(v))
   return Math.max(0, ...listOfLoadTime)
 }
 

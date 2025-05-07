@@ -12,7 +12,7 @@ import { dirname, resolve } from 'node:path'
 
 import { compose } from './hbs'
 import logger from './log'
-import { fmlSteps, getFmlStuff, getJeiPlugins, getMcLoadTime, getMods } from './parse'
+import { fmlSteps, getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline } from './parse'
 
 //############################################################################
 //############################################################################
@@ -118,15 +118,14 @@ export default async function parseDebugLog(_options: Args) {
   if (otherFmlStuffTime > 0)
     fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
+  const timeline = getTimeline(debug_log)
+
   const data = {
     modpackName: options.modpack,
     mcLoadTime,
     mcLoadTimeMin: secondsToMinutes(mcLoadTime),
 
-    horizontalBar: [
-      { label: 'MODS', value: modsTime },
-      { label: 'FML stuff', value: loaderStuffTime },
-    ],
+    loadingTimeline: timeline,
 
     modLoadingTime: pie,
 

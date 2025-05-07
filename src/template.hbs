@@ -23,25 +23,48 @@ Note for image scripts:
   - This characters cant be used: +<"%#
 -->
 <p align="center">
-<img src="https://quickchart.io/chart?w=400&h=30&c={
+<img src="https://quickchart.io/chart?w=400&h=60&c={
   type: 'horizontalBar',
   data: {
     datasets: [
-      {{#each horizontalBar}}
-        {label: '{{label}}:', data: [{{num value}}]},
+      {{#each loadingTimeline}}
+        {label: '{{this.[0]}}\n', data: [{{num this.[1]}}]},
       {{/each}}
     ]
   },
   options: {
+    layout: { padding: { top: 10 } },
     scales: {
       xAxes: [{display: false, stacked: true}],
       yAxes: [{display: false, stacked: true}],
     },
     elements: {rectangle: {borderWidth: 2}},
     legend: {display: false},
-    plugins: {datalabels: {color: 'white',formatter: (value, context) =>
-      [context.dataset.label, value].join(' ')
-    }}
+    plugins: {datalabels: {
+      color: 'white',
+      font: {
+        family: 'Consolas',
+      },
+      formatter: (value, context) =>
+        [context.dataset.label, value, 's'].join('')
+    }},
+    annotation: {
+      clip: false,
+      annotations: [{
+          type: 'line',
+          scaleID: 'x-axis-0',
+          value: {{loadingTimeline.[0].[1]}},
+          borderColor: 'black',
+          label: {
+            content: '{{loadingTimeline.[0].[2]}}',
+            fontSize: 8,
+            enabled: true,
+            xPadding: 8, yPadding: 2,
+            yAdjust: -20
+          },
+        }
+      ]
+    },
   }
 }"/>
 </p>
