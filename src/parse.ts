@@ -1,8 +1,11 @@
 import type logger from './log'
-import chalk from 'chalk'
+import process from 'node:process'
+import chalkWeak from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
 import { sum } from '.'
+
+const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
 // @ts-expect-error default
 

@@ -34,10 +34,12 @@ Some lunchers disable the creation of a `logs/debug.log` file. Change the settin
 ### Options
 
 ```
+Positionals:
+  input  Debug.log path  [string] [default: "logs/debug.log"]
+
+Options:
       --help      Show help  [boolean]
-  -i, --input     Debug.log path  [string] [default: "logs/debug.log"]
   -c, --ctlog     crafttweaker.log path  [string] [default: "crafttweaker.log"]
-  -o, --output    Output file path  [string] [default: "benchmark.md"]
   -a, --data      Output of gathered .json data  [string]
   -d, --detailed  Count of detailed mods in main pie chart  [number] [default: 16]
   -t, --template  Non-default template path  [string]
@@ -51,7 +53,7 @@ Some lunchers disable the creation of a `logs/debug.log` file. Change the settin
 - **[examples/benchmark.md](examples/benchmark.md)** - Default output without options.
   Useful for version control, because all data that would be changed on new `mc-benchmark` run would be changed in separate lines.
   On Github you will see missed images ![](https://i.imgur.com/DLaTFOZ.png), because GitHub cant parse spaces.
-- **[examples/benchmark--nospaces.md](examples/benchmark--nospaces.md)** - Replace all space characters `\s+` with `%20`. Messed up formatting, but could be seen from GitHub
+- **[examples/benchmark-nospaces.md](examples/benchmark-nospaces.md)** - Replace all space characters `\s+` with `%20`. Messed up formatting, but could be seen from GitHub
 
 ## Author
 

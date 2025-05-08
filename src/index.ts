@@ -9,11 +9,13 @@
 import type { Args } from './cli'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-
-import chalk from 'chalk'
+import process from 'node:process'
+import chalkWeak from 'chalk'
 import { compose } from './hbs'
 import logger from './log'
 import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse'
+
+const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
 //############################################################################
 //############################################################################
@@ -170,15 +172,6 @@ export default async function parseDebugLog(_options: Args) {
 
   await log.begin('Composing output')
 
-  const composed = await compose(data, log, options.template)
-
-  try {
-    saveText(composed, options.output)
-  }
-  catch (error) {
-    await log.error(`Can't save output file "${options.output}". Use option "--output=path/to/benchmark.md"\n\n${error}`)
-  }
-
   if (options.data) {
     await log.begin('Writing file')
 
@@ -194,6 +187,9 @@ export default async function parseDebugLog(_options: Args) {
       await log.error(`Can't save output file "${options.data}". Use option "--data=path/to/data.json"\n\n${error}`)
     }
   }
+
+  const composed = await compose(data, log, options.template)
+  process.stdout.write(composed)
 
   log.result(`Load Time total: ${mcLoadTime}`)
 }

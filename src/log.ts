@@ -1,5 +1,7 @@
 import process from 'node:process'
-import chalk from 'chalk'
+import chalkWeak from 'chalk'
+
+const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
 const logger = {
   begin(s: string, newSteps?: number) {
@@ -10,41 +12,41 @@ const logger = {
     }
     this.isUnfinishedTask = true
     if (this.level <= 1)
-      process.stdout.write(`🔹 ${s.trim()}${newSteps ? ` [${newSteps}] ` : ''}`)
+      process.stderr.write(`🔹 ${s.trim()}${newSteps ? ` [${newSteps}] ` : ''}`)
   },
   done(s = '') {
     if (!this.isUnfinishedTask)
       return
     this.isUnfinishedTask = false
     if (this.level <= 1)
-      process.stdout.write(` ${chalk.gray(`${s} ✔`)}\n`)
+      process.stderr.write(` ${chalk.gray(`${s} ✔`)}\n`)
   },
   step(s = '.') {
     if (this.steps % (Math.floor(this.maxSteps / 10)) === 0) {
       if (this.level <= 1)
-        process.stdout.write(s)
+        process.stderr.write(s)
     }
     this.steps++
   },
   result(s = '') {
     this.done()
     if (this.level <= 1)
-      process.stdout.write(`✔️ ${chalk.dim.green(`${s}`)}\n`)
+      process.stderr.write(`✔️ ${chalk.dim.green(`${s}`)}\n`)
   },
   info(s = '') {
     this.done()
     if (this.level <= 0)
-      process.stdout.write(`${chalk.dim.green('ℹ')} ${chalk.dim.gray(`${s}`)}\n`)
+      process.stderr.write(`${chalk.dim.green('ℹ')} ${chalk.dim.gray(`${s}`)}\n`)
   },
   warn(...s: string[]) {
     this.done()
     if (this.level <= 2)
-      process.stdout.write(`⚠️ ${chalk.dim.yellow(`${s.join('\t')}`)}\n`)
+      process.stderr.write(`⚠️ ${chalk.dim.yellow(`${s.join('\t')}`)}\n`)
   },
   error(...s: string[]) {
     this.done()
     if (this.level <= 3)
-      process.stdout.write(`🛑 ${chalk.dim.red (`${s.join('\t')}`)}\n`)
+      process.stderr.write(`🛑 ${chalk.dim.red (`${s.join('\t')}`)}\n`)
   },
 
   isUnfinishedTask: false,

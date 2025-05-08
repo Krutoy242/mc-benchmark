@@ -26,9 +26,10 @@
     "dist"
   ],
   "scripts": {
-    "preview": "vite-node src/cli.ts -vv --input=D:/mc/E2E-E/logs/debug.log --ctlog=D:/mc/E2E-E/crafttweaker.log --data=src/template.hbs.json --output=examples/benchmark.md",
-    "preview-nospaces": "vite-node scripts/nospaces.ts && vite-node src/cli.ts -vv --input=D:/mc/E2E-E/logs/debug.log --ctlog=D:/mc/E2E-E/crafttweaker.log --data=src/template.hbs.json --output=examples/benchmark-nospaces.md --template=src/template-nospaces.hbs",
-    "build": "vite-node scripts/build.ts && vite build"
+    "preview": "vite-node src/cli.ts --cwd=D:/mc/E2E-E -vv --data=src/template.hbs.json > examples/benchmark.md",
+    "preview-nospaces": "vite-node scripts/nospaces.ts && vite-node src/cli.ts --cwd=D:/mc/E2E-E -vv --data=src/template-nospaces.hbs.json --template=src/template-nospaces.hbs > examples/benchmark-nospaces.md",
+    "build": "vite-node scripts/build.ts && vite build",
+    "release": "pnpm build && release-it"
   },
   "dependencies": {
     "chalk": "^5.4.1",
