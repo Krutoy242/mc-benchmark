@@ -2,6 +2,7 @@ import type logger from './log'
 import chalk from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
+import { sum } from '.'
 
 // @ts-expect-error default
 
@@ -27,8 +28,7 @@ const fml_steps_rgx = `(?<stepName>${
 })`
 
 export interface Mod {
-  time: number
-  loaderSteps: number[]
+  steps: number[]
   fileName?: string
   color: string
   parts?: Part[]
@@ -123,15 +123,13 @@ export async function getMods(
       continue
 
     result[modName] ??= {
-      time: 0,
-      loaderSteps: Object.keys(fmlSteps).map(() => 0.0),
+      steps: [...Object.keys(fmlSteps), 0.0].map(() => 0.0),
       color: colorHash.hex(modName).slice(1),
     }
 
     const stepIndex = Object.values(fmlSteps).findIndex(rgx => stepName.match(rgx))
     const time = Number.parseFloat(timeStr)
-    result[modName].loaderSteps[stepIndex] += time
-    result[modName].time += time
+    result[modName].steps[stepIndex] += time
   }
 
   // Get file for every mod
@@ -159,6 +157,7 @@ export async function getMods(
   await addParts(result, {
     name: '[JEI Ingredient Filter]',
     rgx: /(Just|Had) Enough Items/i,
+    step: 'LoadComplete',
     time: toSeconds(debug_log.match(
       /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
     )?.groups),
@@ -169,32 +168,36 @@ export async function getMods(
     await addParts(result, {
       name: '[JEI Plugins]',
       rgx: /(Just|Had) Enough Items/i,
-      time: jeiPlugins.reduce((a, v) => a + v),
+      step: 'LoadComplete',
+      time: sum(jeiPlugins),
     }, log)
   }
 
   await addParts(result, {
     name: '[VF Sprite preload]',
     rgx: /VintageFix/i,
+    step: 'Other',
     time: Number.parseFloat(debug_log.match(
       /\[Client thread\/INFO\] \[VintageFix\]: Preloaded \d+ sprites in (\d+(?:\.\d+)?) s/,
     )?.[1] ?? '0'),
   }, log)
 
-  if (crafttweaker_log) {
-    const scriptLoading = [...crafttweaker_log.matchAll(
-      /\[.+?\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/g,
-    )]
-    await addParts(result, {
-      name: '[CT Script Loading]',
-      rgx: 'CraftTweaker2',
-      time: scriptLoading.map(([,n]) => Number.parseFloat(n ?? '0') / 1000).reduce((a, v) => a + v),
-    }, log)
-  }
+  // if (crafttweaker_log) {
+  //   const scriptLoading = [...crafttweaker_log.matchAll(
+  //     /\[.+?\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/g,
+  //   )]
+  //   await addParts(result, {
+  //     name: '[CT Script Loading]',
+  //     rgx: 'CraftTweaker2',
+  //     step: 'Other',
+  //     time: sum(scriptLoading.map(([,n]) => Number.parseFloat(n ?? '0') / 1000)),
+  //   }, log)
+  // }
 
   await addParts(result, {
     name: '[Oredict Melting]',
     rgx: /Tinkers' Construct|Tinkers' Antique/,
+    step: 'Other',
     time: Number.parseFloat(debug_log.match(
       /Oredict melting recipes finished in (\d+\.\d+) ms/,
     )?.[1] ?? '0') / 1000,
@@ -206,13 +209,14 @@ export async function getMods(
     await addParts(result, {
       name: '[TCon Textures]',
       rgx: /^Tinkers' Construct|Tinkers' Antique/,
+      step: 'Other',
       time: duration,
     }, log)
   }
 
   // Sort object
   result = Object.fromEntries(Object.entries(result)
-    .sort(([,{ time: a }], [,{ time: b }]) => b - a))
+    .sort(([,{ steps: a }], [,{ steps: b }]) => sum(b) - sum(a)))
 
   return result
 }
@@ -264,6 +268,7 @@ export async function getJeiPlugins(debug_log: string, log: typeof logger) {
 async function addParts(mods: ModStore, part: {
   name: string
   rgx: string | RegExp
+  step: keyof typeof fmlSteps | 'Other'
   time: number
 }, log: typeof logger) {
   // eslint-disable-next-line unicorn/prefer-number-properties
@@ -286,16 +291,24 @@ async function addParts(mods: ModStore, part: {
 
   const [modName, mod] = entry
 
-  if (mod.time + part.time < 0) {
-    await log.info(
-      `${chalk.hex('558855').bold(modName)} `
-      + `totalTime: ${chalk.hex('558855')(mod.time)}s, but `
-      + `'${chalk.hex('558855').bold(part.name)}' is `
-      + `${chalk.hex('558855')(part.time)}s.`,
-    )
+  const fmlStepsKeys = Object.keys(fmlSteps)
+  if (part.step === 'Other') {
+    mod.steps[fmlStepsKeys.length] += part.time
   }
   else {
-    mod.time += part.time
+    const stepIndex = fmlStepsKeys.indexOf(part.step)
+    if (mod.steps[stepIndex] - part.time < 0) {
+      await log.info(
+        `${chalk.hex('558855').bold(modName)} `
+        + `step ${part.step} `
+        + `time: ${chalk.hex('558855')(mod.steps[stepIndex])}s, but `
+        + `'${chalk.hex('558855').bold(part.name)}' is `
+        + `${chalk.hex('558855')(part.time)}s.`,
+      )
+    }
+    else {
+      mod.steps[stepIndex] -= part.time
+    }
   }
 
   mod.parts ??= []
@@ -323,6 +336,10 @@ export function getFmlStuff(debug_log: string): Part[] {
     const name = nameRaw
       .replace(/\$.*/, '') // Metadata
       .replace(/ - done/, '') // done message
+
+    if (/Applying remove (?:recipes without ingredients|recipe actions).*|^Loading$/.test(name))
+      continue
+
     const time = Number.parseFloat(timeRaw)
     bars[name] ??= 0
     bars[name] += time

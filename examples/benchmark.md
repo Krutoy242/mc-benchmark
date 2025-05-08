@@ -4,10 +4,10 @@
 
 <p align="center" style="font-size:160%;">
 MC total load time:<br>
-282 sec
+295 sec
 <br>
 <sup><sub>(
-4:42 min
+4:55 min
 )</sub></sup>
 </p>
 
@@ -22,10 +22,10 @@ Note for image scripts:
   type: 'horizontalBar',
   data: {
     datasets: [
-        {label: 'Mixins\n', data: [ 34.0 ]},
-        {label: 'Construction\n', data: [ 56.0 ]},
-        {label: 'PreInit\n', data: [138.0 ]},
-        {label: 'Init\n', data: [ 50.0 ]},
+        {label: 'Mixins\n', data: [ 39.0 ]},
+        {label: 'Construction\n', data: [ 59.0 ]},
+        {label: 'PreInit\n', data: [139.0 ]},
+        {label: 'Init\n', data: [ 54.0 ]},
     ]
   },
   options: {
@@ -49,7 +49,7 @@ Note for image scripts:
       annotations: [{
           type: 'line',
           scaleID: 'x-axis-0',
-          value: 34,
+          value: 39,
           borderColor: 'black',
           label: {
             content: 'Window appear',
@@ -89,34 +89,35 @@ Note for image scripts:
   },
   data: {...
 `
-5161a8   2.74s CraftTweaker2;
-45528F   7.31s [CT Script\nLoading];
-436e17   1.40s Had Enough\nItems;
-395E14   1.13s [JEI Ingredient\nFilter];
-395E14   6.8 s [JEI Plugins];
-813e81   6.7 s OpenComputers;
-8f304e   5.87s Astral Sorcery;
-a651a8   4.84s IndustrialCraft 2;
-516fa8   4.49s Ender IO;
-3ebaa4   0.1 s VintageFix;
-359E8B   4.12s [VF Sprite\npreload];
-6e5e17   0.89s Tinkers' Antique;
+5161a8   8.8 s CraftTweaker2;
+436e17   7.28s Had Enough Items;
+395E14   0.94s [JEI Ingredient Filter];
+395E14   6.67s [JEI Plugins];
+8f304e   7.5 s Astral Sorcery;
+516fa8   6.23s Ender IO;
+813e81   6.5 s OpenComputers;
+a651a8   4.81s IndustrialCraft 2;
+6e5e17   4.59s Tinkers' Antique;
 5E5014   3.0 s [TCon Textures];
-cd922c   2.89s NuclearCraft;
-213664   2.52s Forestry;
-308f7e   2.42s Quark: RotN\nEdition;
-436e17   2.20s Integrated\nDynamics;
-ba3eb8   2.16s Cyclic;
-3e8160   2.3 s The Twilight\nForest;
-a0ba3e   1.97s HammerLib;
-8f4d30   1.85s Open Terrain\nGenerator;
-444444  26.4 s 19 Other mods;
-333333  37.61s 133 'Fast' mods\n(1.0s -\n0.1s);
-222222   8.37s 315 'Instant' mods (%3C\n0.1s)
+3ebaa4   3.59s VintageFix;
+359E8B   3.56s [VF Sprite preload];
+cd922c   3.26s NuclearCraft;
+213664   3.22s Forestry;
+3e7d81   2.95s ProbeZS;
+8f4d30   2.72s Open Terrain Generator;
+3e8160   2.55s The Twilight Forest;
+216364   2.48s Thermal Expansion;
+30518f   2.37s Patchouli;
+308f7e   2.25s Quark: RotN Edition;
+444444  38.72s 26 Other mods;
+333333  45.9 s 149 'Fast' mods (1.0s - 0.1s);
+222222   7.91s 290 'Instant' mods (%3C 0.1s)
 `
     .split(';').reduce((a, l) => {
       l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s)
-      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
+      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), a,
+        a.length > 15 ? a.split(/(?%3C=.{9})\s(?=\S{5})/).join('\n') : a
+      ][i])
       .forEach((s, i) =>
         [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
       );
@@ -173,23 +174,26 @@ a0ba3e   1.97s HammerLib;
 1: Loading Resources;
 2: PreInitialization;
 3: Initialization;
-4: Other
+4: InterModComms;
+5: LoadComplete;
+6: ModIdMapping;
+7: Other
 `
     .split(';')
       .map(l => l.match(/\d: (.*)/).slice(1))
       .forEach(([name]) => a.datasets.push({ label: name, data: [] }));
 `
-                                   0      1      2      3      4;
-  CraftTweaker2                 |  0.10|  0.0 |  2.63|  0.0 |  7.31;
-  OpenComputers                 |  0.16|  0.0 |  4.16|  1.73|  0.0 ;
-  Astral Sorcery                |  0.19|  0.0 |  4.97|  0.70|  0.0 ;
-  IndustrialCraft 2             |  0.82|  0.0 |  3.48|  0.53|  0.0 ;
-  Ender IO                      |  1.37|  0.0 |  2.90|  0.21|  0.0 ;
-  VintageFix                    |  0.1 |  0.0 |  0.0 |  0.0 |  4.12;
-  Tinkers&#x27; Antique              |  0.75|  0.0 |  0.12|  0.1 |  3.0 ;
-  NuclearCraft                  |  0.5 |  0.0 |  2.64|  0.19|  0.0 ;
-  Forestry                      |  0.30|  0.0 |  1.82|  0.39|  0.0 ;
-  Quark: RotN Edition           |  0.2 |  0.0 |  2.34|  0.5 |  0.0 
+                                   0      1      2      3      4      5      6      7;
+  CraftTweaker2                 |  0.30|  0.0 |  2.49|  5.20|  0.0 |  0.7 |  0.0 |  0.0 ;
+  Astral Sorcery                |  0.30|  0.0 |  5.51|  1.23|  0.0 |  0.0 |  0.0 |  0.0 ;
+  Ender IO                      |  1.48|  0.0 |  3.12|  0.27|  1.33|  0.0 |  0.1 |  0.0 ;
+  OpenComputers                 |  0.39|  0.0 |  3.82|  1.78|  0.5 |  0.0 |  0.0 |  0.0 ;
+  IndustrialCraft 2             |  0.79|  0.0 |  3.23|  0.78|  0.0 |  0.0 |  0.0 |  0.0 ;
+  Tinkers' Antique              |  0.70|  0.0 |  0.10|  0.77|  0.0 |  0.0 |  0.0 |  3.0 ;
+  VintageFix                    |  0.1 |  0.0 |  0.0 |  0.1 |  0.0 |  0.0 |  0.0 |  3.56;
+  NuclearCraft                  |  0.4 |  0.0 |  2.85|  0.32|  0.0 |  0.0 |  0.3 |  0.0 ;
+  Forestry                      |  0.32|  0.0 |  1.76|  1.13|  0.0 |  0.0 |  0.0 |  0.0 ;
+  ProbeZS                       |  0.2 |  0.0 |  0.3 |  2.89|  0.0 |  0.0 |  0.0 |  0.0 
 `
     .split(';').slice(1)
       .map(l => l.split('|').map(s => s.trim()))
@@ -221,18 +225,18 @@ a0ba3e   1.97s HammerLib;
         }]
       };
 `
-1.405: jeresources.jei.JEIConfig;
-0.706: com.rwtema.extrautils2.crafting.jei.XUJEIPlugin;
-0.516: crazypants.enderio.machines.integration.jei.MachinesPlugin;
-0.49 : com.buuz135.thaumicjei.ThaumcraftJEIPlugin;
-0.365: ic2.jeiIntegration.SubModule;
-0.357: com.buuz135.industrial.jei.JEICustomPlugin;
-0.28 : mezz.jei.plugins.vanilla.VanillaPlugin;
-0.176: crazypants.enderio.base.integration.jei.JeiPlugin;
-0.175: cofh.thermalexpansion.plugins.jei.JEIPluginTE;
-0.084: ninjabrain.gendustryjei.GendustryJEIPlugin;
-0.079: net.bdew.jeibees.BeesJEIPlugin;
-0.075: thaumicenergistics.integration.jei.ThEJEI
+1.785: jeresources.jei.JEIConfig;
+0.651: com.rwtema.extrautils2.crafting.jei.XUJEIPlugin;
+0.579: ic2.jeiIntegration.SubModule;
+0.486: com.buuz135.industrial.jei.JEICustomPlugin;
+0.485: crazypants.enderio.machines.integration.jei.MachinesPlugin;
+0.294: mezz.jei.plugins.vanilla.VanillaPlugin;
+0.19 : crazypants.enderio.base.integration.jei.JeiPlugin;
+0.182: com.buuz135.thaumicjei.ThaumcraftJEIPlugin;
+0.163: cofh.thermalexpansion.plugins.jei.JEIPluginTE;
+0.14 : ninjabrain.gendustryjei.GendustryJEIPlugin;
+0.108: net.bdew.jeibees.BeesJEIPlugin;
+0.087: crafttweaker.mods.jei.JEIAddonPlugin
 `
         .split(';')
         .map(l => l.split(':'))
@@ -274,7 +278,7 @@ Loading bars that usually not related to specific mods.
             font: {size: 18}
           },
           {
-            text: '143.91s',
+            text: '119.88s',
             color: 'rgba(128, 128, 128, 1)',
             font: {size: 22}
           }
@@ -294,21 +298,23 @@ Loading bars that usually not related to specific mods.
       }]
     };
 `
-739900   1.12s Reloading;
-001799   2.73s Loading Resource -\nAssetLibrary;
-2C9900   4.2 s Preloading\n51365\ntextures;
-229900   2.60s Texture loading;
-039900   1.18s Texture mipmap and\nupload;
-009911   4.98s Posting bake\nevents;
-00991C  34.6 s Setting up\ndynamic\nmodels;
-009926  34.12s Loading Resource -\nModelManager;
-00998C  34.85s Rendering Setup;
-444444  19.40s Other
+001799   3.64s Loading Resource - AssetLibrary;
+369900   3.47s Preloading 50769 textures;
+2C9900   2.5 s Texture loading;
+009907   4.18s Posting bake events;
+009911  31.69s Setting up dynamic models;
+00991C  31.77s Loading Resource - ModelManager;
+009982  32.61s Rendering Setup;
+300099   1.26s XML Recipes;
+3A0099   1.77s InterModComms
 `
     .split(';')
       .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s))
       .forEach(([, col, time, name]) => {
-        a.labels.push([name, ' ', time, 's'].join(''));
+        a.labels.push([
+          name.length > 15 ? name.split(/(?%3C=.{9})\s(?=\S{5})/).join('\n') : name
+          , ' ', time, 's'
+        ].join(''));
         a.datasets[0].data.push(parseFloat(time));
         a.datasets[0].backgroundColor.push([String.fromCharCode(35), col].join(''))
       })

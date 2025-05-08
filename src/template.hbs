@@ -94,12 +94,14 @@ Note for image scripts:
   data: {...
 `
 {{#each modLoadingTime}}
-{{color}} {{num time}}s {{{wordWrap name}}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{{name}}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';').reduce((a, l) => {
       l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s)
-      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), parseFloat(a), a][i])
+      .slice(1).map((a, i) => [[String.fromCharCode(35),a].join(''), a,
+        a.length > 15 ? a.split(/(?%3C=.{9})\s(?=\S{5})/).join('\n') : a
+      ][i])
       .forEach((s, i) =>
         [a.datasets[0].backgroundColor, a.datasets[0].data, a.labels][i].push(s)
       );
@@ -162,7 +164,7 @@ Note for image scripts:
 `
                              {{#each fmlSteps}}      {{@index}}{{/each}};
 {{#each (truncate loaderSteps 10)}}
-  {{padEnd 30 @key}}|
+  {{{padEnd 30 @key}}}|
     {{~#each .}}{{num .}}{{#unless @last}}|{{/unless}}{{/each}}
   {{~#unless @last}};{{/unless}}
 {{/each}}
@@ -262,13 +264,16 @@ Loading bars that usually not related to specific mods.
     };
 `
 {{#each (filterTime fmlStuff.list 1.0)}}
-{{color}} {{num time}}s {{wordWrap name}}{{#unless @last}};{{/unless}}
+{{color}} {{num time}}s {{name}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
     .split(';')
       .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s))
       .forEach(([, col, time, name]) => {
-        a.labels.push([name, ' ', time, 's'].join(''));
+        a.labels.push([
+          name.length > 15 ? name.split(/(?%3C=.{9})\s(?=\S{5})/).join('\n') : name
+          , ' ', time, 's'
+        ].join(''));
         a.datasets[0].data.push(parseFloat(time));
         a.datasets[0].backgroundColor.push([String.fromCharCode(35), col].join(''))
       })

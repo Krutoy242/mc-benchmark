@@ -23,6 +23,10 @@ function secondsToMinutes(sec: number): string {
   return `${min}:${String(Math.floor(sec) - min * 60).padStart(2, '0')}`
 }
 
+export function sum(arr: Array<number>): number {
+  return arr.reduce((a, v) => a + v, 0)
+}
+
 export default async function parseDebugLog(_options: Args) {
   const options = {
     mkdirSync,
@@ -81,21 +85,20 @@ export default async function parseDebugLog(_options: Args) {
   interface PieMod {
     name: string
     color: string
-    time: number
+    readonly time: number
   }
 
   const pie: PieMod[] = []
 
   for (const [name, mod] of Object.entries(mods).slice(0, options.detailed)) {
-    const modSlice = { name, color: mod.color, time: mod.time }
+    const modSlice: PieMod = { name, color: mod.color, time: sum(mod.steps) }
     pie.push(modSlice)
     ;(mod.parts ?? []).forEach((part) => {
-      modSlice.time -= part.time
       pie.push(part)
     })
   }
 
-  const totalTimes = Object.values(mods).map(m => m.time).slice(options.detailed)
+  const totalTimes = Object.values(mods).map(m => sum(m.steps)).slice(options.detailed)
 
   async function piePush(color: string, text: string, filter: (t: number) => boolean) {
     const otherMods = totalTimes.filter(filter)
@@ -103,7 +106,7 @@ export default async function parseDebugLog(_options: Args) {
       pie.push({
         name: `${otherMods.length} ${text}`,
         color,
-        time: otherMods.reduce((a, v) => a + v),
+        time: sum(otherMods),
       })
     }
     else {
@@ -117,11 +120,13 @@ export default async function parseDebugLog(_options: Args) {
   await piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
 
   const mcLoadTime = getMcLoadTime(debug_log)
-  const modsTime = pie.map(o => o.time).reduce((acc, v) => acc + v, 0)
+  const modsTime = sum(pie.map(o => o.time))
 
   const fmlStuff = getFmlStuff(debug_log)
   const loaderStuffTime = mcLoadTime - modsTime
-  const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v, 0)
+
+  // Destinct "Other" section of chart
+  const otherFmlStuffTime = loaderStuffTime - sum(fmlStuff.map(part => part.time))
   if (otherFmlStuffTime > 0)
     fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
@@ -131,13 +136,12 @@ export default async function parseDebugLog(_options: Args) {
   const filteredLoaderSteps = Object
     .entries(mods)
     .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
-  const fmlStepsTotal = [...(filteredLoaderSteps[0]?.[1].loaderSteps ?? [])]
-  filteredLoaderSteps.forEach(([,{ loaderSteps }], i) => {
-    if (i === 0)
-      return
-    loaderSteps.forEach((n, j) => fmlStepsTotal[j] += n)
-  })
+  const fmlStepsTotal = columnSumm(filteredLoaderSteps.map(([,{ steps }]) => steps))
   const fmlStepFilter = fmlStepsTotal.map(n => n > 0)
+  const fmlStepsParsed = [
+    ...Object.keys(fmlSteps).filter((_, i) => fmlStepFilter[i]),
+    'Other',
+  ]
 
   const data = {
     modpackName: options.modpack,
@@ -148,13 +152,10 @@ export default async function parseDebugLog(_options: Args) {
 
     modLoadingTime: pie,
 
-    fmlSteps: [...Object.keys(fmlSteps).filter((_, i) => fmlStepFilter[i]), 'Other'],
+    fmlSteps: fmlStepsParsed,
     loaderSteps: Object.fromEntries(filteredLoaderSteps.map(([name, mod]) => [
       name,
-      [
-        ...mod.loaderSteps.filter((_, i) => fmlStepFilter[i]),
-        mod.parts?.reduce((a, v) => a + v.time, 0) ?? 0,
-      ],
+      mod.steps.filter((_, i) => fmlStepFilter[i]),
     ])),
 
     jeiPlugins: await getJeiPlugins(debug_log, log),
@@ -193,4 +194,11 @@ export default async function parseDebugLog(_options: Args) {
   }
 
   log.result(`Load Time total: ${mcLoadTime}`)
+}
+
+function columnSumm(arr: number[][]): number[] {
+  return arr.reduce((r, a) => {
+    a.forEach((b, i) => r[i] = (r[i] || 0) + b)
+    return r
+  }, [])
 }
