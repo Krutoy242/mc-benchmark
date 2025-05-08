@@ -59,18 +59,12 @@ export function getTimeline(debug_log: string) {
       rgx: /\[Client thread\/INFO\] \[FML\]: -- System Details --/,
       stamp: 'Window appear',
     },
-    // Stuff: {
-    //   rgx: /Sending event FMLConstructionEvent to mod minecraft/,
-    // },
     Construction: {
       rgx: /Sending event FMLPreInitializationEvent to mod minecraft/,
     },
     PreInit: {
       rgx: /Sending event FMLInitializationEvent to mod minecraft/,
     },
-    // Init: {
-    //   rgx: /\[Foundation\]/,
-    // },
     Init: {
       rgx: mcFinishLoadingRgx,
     },
