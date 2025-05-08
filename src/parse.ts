@@ -327,22 +327,27 @@ function toSeconds(groups?: { [key: string]: string }) {
     : Number.parseFloat(groups.num) / 1000.0
 }
 
+const fmlStuffRegexps = [
+  /\[Client thread\/DEBUG\] \[FML\]: Bar Finished: (?<name>.*) took (?<time>\d+\.\d+)s/g,
+  /(?<name>\[VintageFix\]: Texture search) took (?<time>\d+\.\d+) s, total of 68429 collected sprites/g,
+]
+
 export function getFmlStuff(debug_log: string): Part[] {
   const bars: { [key: string]: number } = {}
 
-  for (const [,nameRaw, timeRaw] of debug_log.matchAll(
-    /\[Client thread\/DEBUG\] \[FML\]: Bar Finished: (.*) took (\d+\.\d+)s/g,
-  )) {
-    const name = nameRaw
-      .replace(/\$.*/, '') // Metadata
-      .replace(/ - done/, '') // done message
+  for (const rgx of fmlStuffRegexps) {
+    for (const [,nameRaw, timeRaw] of debug_log.matchAll(rgx)) {
+      const name = nameRaw
+        .replace(/\$.*/, '') // Metadata
+        .replace(/ - done/, '') // done message
 
-    if (/Applying remove (?:recipes without ingredients|recipe actions).*|^Loading$/.test(name))
-      continue
+      if (/Applying remove (?:recipes without ingredients|recipe actions).*|^Loading$/.test(name))
+        continue
 
-    const time = Number.parseFloat(timeRaw)
-    bars[name] ??= 0
-    bars[name] += time
+      const time = Number.parseFloat(timeRaw)
+      bars[name] ??= 0
+      bars[name] += time
+    }
   }
 
   const fmlStuffBars = Object.entries(bars)
