@@ -121,7 +121,11 @@ Note for image scripts:
 
 <br>
 
-# Top Mods Details (except JEI, FML and Forge)
+# Loader steps
+
+Show how much time each mod takes on each game load phase.
+
+JEI/HEI not included, since its load time based on other mods and overal item count.
 
 <p align="center">
 <img src="https://quickchart.io/chart.png?w=400&h=450&c={
@@ -154,20 +158,20 @@ Note for image scripts:
   data: {...(() => {
     let a = { labels: [], datasets: [] };
 `
-{{#each fmlSteps}}
-{{@index}}: {{.}}{{#unless @last}};{{/unless}}
+{{#each loaderStepNames}}
+{{@index}}: {{.}};
 {{/each}}
+{{loaderStepNames.length}}: Other
 `
     .split(';')
       .map(l => l.match(/\d: (.*)/).slice(1))
       .forEach(([name]) => a.datasets.push({ label: name, data: [] }));
 `
-                             {{#each fmlSteps}}      {{@index}}{{/each}};
+                            {{#each loaderStepNames}}      {{@index}}{{/each}}      {{loaderStepNames.length}};
 {{#each (truncate loaderSteps 10)}}
-  {{{padEnd 30 @key}}}|
-    {{~#each .}}{{num .}}{{#unless @last}}|{{/unless}}{{/each}}
-  {{~#unless @last}};{{/unless}}
+{{{padEnd 30 @key}}}|{{#each .}}{{num .}}{{#unless @last}}|{{/unless}}{{/each}};
 {{/each}}
+{{#each loaderSteps}}{{#if @last}}{{{padEnd 30 @key}}}|{{#each .}}{{num .}}{{#unless @last}}|{{/unless}}{{/each}}{{/if}}{{/each}}
 `
     .split(';').slice(1)
       .map(l => l.split('|').map(s => s.trim()))

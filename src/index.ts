@@ -13,7 +13,7 @@ import { dirname, resolve } from 'node:path'
 import chalk from 'chalk'
 import { compose } from './hbs'
 import logger from './log'
-import { fmlSteps, getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline } from './parse'
+import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse'
 
 //############################################################################
 //############################################################################
@@ -133,15 +133,12 @@ export default async function parseDebugLog(_options: Args) {
   const timeline = getTimeline(debug_log)
 
   // Remove FML steps without time
-  const filteredLoaderSteps = Object
-    .entries(mods)
+  const filteredLoaderSteps = Object.entries(mods)
     .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
-  const fmlStepsTotal = columnSumm(filteredLoaderSteps.map(([,{ steps }]) => steps))
-  const fmlStepFilter = fmlStepsTotal.map(n => n > 0)
-  const fmlStepsParsed = [
-    ...Object.keys(fmlSteps).filter((_, i) => fmlStepFilter[i]),
-    'Other',
-  ]
+  const sumLoaderSteps = columnSumm(filteredLoaderSteps.map(([,{ steps }]) => steps))
+  const fmlStepFilter = sumLoaderSteps.map(n => n > 0)
+  const removeUnusedSteps = <T>(arr: T[]) => arr.filter((_, i) => fmlStepFilter[i])
+  filteredLoaderSteps.forEach(([, mod]) => mod.steps = removeUnusedSteps(mod.steps))
 
   const data = {
     modpackName: options.modpack,
@@ -152,11 +149,16 @@ export default async function parseDebugLog(_options: Args) {
 
     modLoadingTime: pie,
 
-    fmlSteps: fmlStepsParsed,
-    loaderSteps: Object.fromEntries(filteredLoaderSteps.map(([name, mod]) => [
-      name,
-      mod.steps.filter((_, i) => fmlStepFilter[i]),
-    ])),
+    loaderStepNames: removeUnusedSteps(Object.keys(loaderSteps)),
+    loaderSteps: Object.fromEntries(
+      filteredLoaderSteps.map(([n, m]) => [n, m.steps])
+        .concat([[
+          '[Mod Average]',
+          sumLoaderSteps
+            .map(n => n / filteredLoaderSteps.filter(([,m]) => sum(m.steps)).length)
+            .filter(Boolean),
+        ]]),
+    ),
 
     jeiPlugins: await getJeiPlugins(debug_log, log),
 

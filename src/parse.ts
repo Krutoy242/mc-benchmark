@@ -12,7 +12,7 @@ function escapeRegex(str: string) {
   return str.replace(/[/\\^$*+?.()|[\]{}]/g, '\\$&')
 }
 
-export const fmlSteps = {
+export const loaderSteps = {
   'Construction': /Construction - /,
   'Loading Resources': /Loading Resources - (?:FMLFileResourcePack:)?/,
   'PreInitialization': /PreInitialization - /,
@@ -24,7 +24,7 @@ export const fmlSteps = {
 }
 
 const fml_steps_rgx = `(?<stepName>${
-  Object.values(fmlSteps).map(l => l.source).join('|')
+  Object.values(loaderSteps).map(l => l.source).join('|')
 })`
 
 export interface Mod {
@@ -123,11 +123,11 @@ export async function getMods(
       continue
 
     result[modName] ??= {
-      steps: [...Object.keys(fmlSteps), 0.0].map(() => 0.0),
+      steps: [...Object.keys(loaderSteps), 0.0].map(() => 0.0),
       color: colorHash.hex(modName).slice(1),
     }
 
-    const stepIndex = Object.values(fmlSteps).findIndex(rgx => stepName.match(rgx))
+    const stepIndex = Object.values(loaderSteps).findIndex(rgx => stepName.match(rgx))
     const time = Number.parseFloat(timeStr)
     result[modName].steps[stepIndex] += time
   }
@@ -268,7 +268,7 @@ export async function getJeiPlugins(debug_log: string, log: typeof logger) {
 async function addParts(mods: ModStore, part: {
   name: string
   rgx: string | RegExp
-  step: keyof typeof fmlSteps | 'Other'
+  step: keyof typeof loaderSteps | 'Other'
   time: number
 }, log: typeof logger) {
   // eslint-disable-next-line unicorn/prefer-number-properties
@@ -291,7 +291,7 @@ async function addParts(mods: ModStore, part: {
 
   const [modName, mod] = entry
 
-  const fmlStepsKeys = Object.keys(fmlSteps)
+  const fmlStepsKeys = Object.keys(loaderSteps)
   if (part.step === 'Other') {
     mod.steps[fmlStepsKeys.length] += part.time
   }
@@ -346,7 +346,7 @@ export function getFmlStuff(debug_log: string): Part[] {
   }
 
   const fmlStuffBars = Object.entries(bars)
-    .filter(([name]) => !Object.values(fmlSteps)
+    .filter(([name]) => !Object.values(loaderSteps)
       .some(rgx => name.match(rgx.source.replace(/ - .*/, ''))))
 
   let colPointer = Color('orange').rotate(-20).darken(0.4)
