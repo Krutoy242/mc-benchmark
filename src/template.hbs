@@ -207,7 +207,7 @@ JEI/HEI not included, since its load time based on other mods and overal item co
       };
 `
 {{#each (truncate jeiPlugins 12 'Other')}}
-{{padEnd 5 .}}: {{@key}}{{#unless @last}};{{/unless}}
+{{num .}}: {{@key}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
         .split(';')

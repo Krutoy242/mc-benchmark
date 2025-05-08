@@ -51,7 +51,7 @@ JEI/HEI not included, since its load time based on other mods and overal item co
 # TOP JEI Registered Plugis
 
 <p align="center">
-<img src="https://quickchart.io/chart.png?w=500&h=200&c={ options: { elements: { rectangle: { borderWidth: 1 } }, legend: false, scales: { yAxes: [{ ticks: { fontSize: 9, fontFamily: 'Verdana' }}], }, }, type: 'horizontalBar', data: {...(() => { let a = { labels: [], datasets: [{ backgroundColor: 'rgba(0, 99, 132, 0.5)', borderColor: 'rgb(0, 99, 132)', data: [] }] }; ` {{#each (truncate jeiPlugins 12 'Other')}} {{padEnd 5 .}}: {{@key}}{{#unless @last}};{{/unless}} {{/each}} ` .split(';') .map(l => l.split(':')) .forEach(([time, name]) => { a.labels.push(name); a.datasets[0].data.push(time) }) ; return a })() } }"/>
+<img src="https://quickchart.io/chart.png?w=500&h=200&c={ options: { elements: { rectangle: { borderWidth: 1 } }, legend: false, scales: { yAxes: [{ ticks: { fontSize: 9, fontFamily: 'Verdana' }}], }, }, type: 'horizontalBar', data: {...(() => { let a = { labels: [], datasets: [{ backgroundColor: 'rgba(0, 99, 132, 0.5)', borderColor: 'rgb(0, 99, 132)', data: [] }] }; ` {{#each (truncate jeiPlugins 12 'Other')}} {{num .}}: {{@key}}{{#unless @last}};{{/unless}} {{/each}} ` .split(';') .map(l => l.split(':')) .forEach(([time, name]) => { a.labels.push(name); a.datasets[0].data.push(time) }) ; return a })() } }"/>
 </p>
 
 <br>

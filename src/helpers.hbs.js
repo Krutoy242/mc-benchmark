@@ -16,9 +16,6 @@ module.exports = {
   num: (text) => {
     if (typeof text != 'string' && typeof text != 'number')
       return String(text)
-    const n = Number.parseFloat(text)
-    const whole = Math.floor(n)
-    const resedue = n - whole
-    return `${String(whole).padStart(3)}.${String(Math.floor(resedue * 100)).padEnd(2)}`
+    return (+text).toFixed(2).padStart(5)
   },
 }
