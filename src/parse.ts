@@ -173,15 +173,6 @@ export async function getMods(
     }, log)
   }
 
-  await addParts(result, {
-    name: '[VF Sprite preload]',
-    rgx: /VintageFix/i,
-    step: 'Other',
-    time: Number.parseFloat(debug_log.match(
-      /\[Client thread\/INFO\] \[VintageFix\]: Preloaded \d+ sprites in (\d+(?:\.\d+)?) s/,
-    )?.[1] ?? '0'),
-  }, log)
-
   // if (crafttweaker_log) {
   //   const scriptLoading = [...crafttweaker_log.matchAll(
   //     /\[.+?\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/g,
@@ -329,24 +320,27 @@ function toSeconds(groups?: { [key: string]: string }) {
 
 const fmlStuffRegexps = [
   /\[Client thread\/DEBUG\] \[FML\]: Bar Finished: (?<name>.*) took (?<time>\d+\.\d+)s/g,
-  /(?<name>\[VintageFix\]: Texture search) took (?<time>\d+\.\d+) s, total of 68429 collected sprites/g,
+  /(?<name>\[VintageFix\]: Texture search) took (?<time>\d+\.\d+) s, total of(?<r1> \d+) collected (?<r2>sprites)/g,
+  /\[Client thread\/INFO\] \[VintageFix\]: (?<name>Preloaded \d+ sprites) in (?<time>\d+(\.\d+)?) s/g,
 ]
 
 export function getFmlStuff(debug_log: string): Part[] {
   const bars: { [key: string]: number } = {}
 
   for (const rgx of fmlStuffRegexps) {
-    for (const [,nameRaw, timeRaw] of debug_log.matchAll(rgx)) {
-      const name = nameRaw
+    for (const { groups } of debug_log.matchAll(rgx)) {
+      const { name, time, ...desc } = groups!
+      const namePure = name
         .replace(/\$.*/, '') // Metadata
         .replace(/ - done/, '') // done message
 
-      if (/Applying remove (?:recipes without ingredients|recipe actions).*|^Loading$/.test(name))
+      if (/Applying remove (?:recipes without ingredients|recipe actions).*|^Loading$/.test(namePure))
         continue
 
-      const time = Number.parseFloat(timeRaw)
-      bars[name] ??= 0
-      bars[name] += time
+      const timePure = Number.parseFloat(time)
+      const nameAndDesc = namePure + Object.values(desc).join(' ')
+      bars[nameAndDesc] ??= 0
+      bars[nameAndDesc] += timePure
     }
   }
 

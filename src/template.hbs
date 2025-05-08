@@ -278,7 +278,7 @@ Loading bars that usually not related to specific mods.
       .map(l => l.match(/(\w{6}) *(\d*\.\d*) ?s (.*)/s))
       .forEach(([, col, time, name]) => {
         a.labels.push([
-          name.length > 15 ? name.split(/(?%3C=.{9})\s(?=\S{5})/).join('\n') : name
+          name.length > 15 ? name.split(/(?%3C=.{11})\s(?=\S{6})/).join('\n') : name
           , ' ', time, 's'
         ].join(''));
         a.datasets[0].data.push(parseFloat(time));
