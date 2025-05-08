@@ -164,27 +164,31 @@ export async function getMods(
     )?.groups),
   }, log)
 
-  await addParts(result, {
-    name: '[JEI Plugins]',
-    rgx: /(Just|Had) Enough Items/i,
-    time: Object.values(getJeiPlugins(debug_log)).reduce((a, v) => a + v),
-  }, log)
+  const jeiPlugins = Object.values(await getJeiPlugins(debug_log, log))
+  if (jeiPlugins.length) {
+    await addParts(result, {
+      name: '[JEI Plugins]',
+      rgx: /(Just|Had) Enough Items/i,
+      time: jeiPlugins.reduce((a, v) => a + v),
+    }, log)
+  }
 
   await addParts(result, {
     name: '[VF Sprite preload]',
     rgx: /VintageFix/i,
     time: Number.parseFloat(debug_log.match(
       /\[Client thread\/INFO\] \[VintageFix\]: Preloaded \d+ sprites in (\d+(?:\.\d+)?) s/,
-    )![1]),
+    )?.[1] ?? '0'),
   }, log)
 
   if (crafttweaker_log) {
+    const scriptLoading = [...crafttweaker_log.matchAll(
+      /\[.+?\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/g,
+    )]
     await addParts(result, {
       name: '[CT Script Loading]',
       rgx: 'CraftTweaker2',
-      time: Number.parseFloat(crafttweaker_log.match(
-        /\[INITIALIZATION\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/,
-      )?.[1] ?? '0') / 1000,
+      time: scriptLoading.map(([,n]) => Number.parseFloat(n ?? '0') / 1000).reduce((a, v) => a + v),
     }, log)
   }
 
@@ -220,7 +224,7 @@ export function getMcLoadTime(debug_log: string): number {
 
 let jeiPluginsCache: Record<string, number>
 
-export function getJeiPlugins(debug_log: string) {
+export async function getJeiPlugins(debug_log: string, log: typeof logger) {
   if (jeiPluginsCache)
     return jeiPluginsCache
 
@@ -250,6 +254,10 @@ export function getJeiPlugins(debug_log: string) {
     // }])
     .map(o => [o.name, o.time]))
 
+  if (jeiPluginsCache.length <= 0) {
+    await log.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
+  }
+
   return jeiPluginsCache
 }
 
@@ -271,7 +279,7 @@ async function addParts(mods: ModStore, part: {
       : part.rgx.test(modName))
 
   if (!entry) {
-    return await log.warn(`Could not found mod `
+    return await log.warn(`Could not find part `
       + `"${chalk.hex('c2aa0e')(part.name)}" with regex `
       + `${chalk.hex('94852e')(part.rgx)}`)
   }

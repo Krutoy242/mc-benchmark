@@ -19,15 +19,15 @@
     "debug",
     "modpack"
   ],
-  "main": "build/index.js",
-  "bin": "build/cli.js",
+  "main": "dist/index.js",
+  "bin": "dist/cli.js",
   "files": [
     "README.md",
     "dist"
   ],
   "scripts": {
     "preview": "vite-node src/cli.ts -vv --input=D:/mc/E2E-E/logs/debug.log --ctlog=D:/mc/E2E-E/crafttweaker.log --data=src/template.hbs.json --output=examples/benchmark.md",
-    "preview-nospaces": "vite-node scripts/build.ts && vite-node src/cli.ts -vv --input=D:/mc/E2E-E/logs/debug.log --ctlog=D:/mc/E2E-E/crafttweaker.log --data=src/template.hbs.json --output=examples/benchmark-nospaces.md --template=src/template-nospaces.hbs",
+    "preview-nospaces": "vite-node scripts/nospaces.ts && vite-node src/cli.ts -vv --input=D:/mc/E2E-E/logs/debug.log --ctlog=D:/mc/E2E-E/crafttweaker.log --data=src/template.hbs.json --output=examples/benchmark-nospaces.md --template=src/template-nospaces.hbs",
     "build": "vite-node scripts/build.ts && vite build"
   },
   "dependencies": {

@@ -10,6 +10,7 @@ import type { Args } from './cli'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
+import chalk from 'chalk'
 import { compose } from './hbs'
 import logger from './log'
 import { fmlSteps, getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline } from './parse'
@@ -96,25 +97,31 @@ export default async function parseDebugLog(_options: Args) {
 
   const totalTimes = Object.values(mods).map(m => m.time).slice(options.detailed)
 
-  function piePush(color: string, text: string, filter: (t: number) => boolean) {
+  async function piePush(color: string, text: string, filter: (t: number) => boolean) {
     const otherMods = totalTimes.filter(filter)
-    pie.push({
-      name: `${otherMods.length} ${text}`,
-      color,
-      time: otherMods.reduce((a, v) => a + v),
-    })
+    if (otherMods.length) {
+      pie.push({
+        name: `${otherMods.length} ${text}`,
+        color,
+        time: otherMods.reduce((a, v) => a + v),
+      })
+    }
+    else {
+      await log.info(`Cannot make pie section `
+        + `"${chalk.hex('007777')(text)}" since no mods found at all`)
+    }
   }
 
-  piePush('444444', `Other mods`, t => t > 1.0)
-  piePush('333333', `'Fast' mods (1.0s - 0.1s)`, t => t >= 0.1 && t <= 1.0)
-  piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
+  await piePush('444444', `Other mods`, t => t > 1.0)
+  await piePush('333333', `'Fast' mods (1.0s - 0.1s)`, t => t >= 0.1 && t <= 1.0)
+  await piePush('222222', `'Instant' mods (%3C 0.1s)`, t => t < 0.1)
 
   const mcLoadTime = getMcLoadTime(debug_log)
-  const modsTime = pie.map(o => o.time).reduce((acc, v) => acc + v)
+  const modsTime = pie.map(o => o.time).reduce((acc, v) => acc + v, 0)
 
   const fmlStuff = getFmlStuff(debug_log)
   const loaderStuffTime = mcLoadTime - modsTime
-  const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v)
+  const otherFmlStuffTime = loaderStuffTime - fmlStuff.map(o => o.time).reduce((a, v) => a + v, 0)
   if (otherFmlStuffTime > 0)
     fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
@@ -124,7 +131,7 @@ export default async function parseDebugLog(_options: Args) {
   const filteredLoaderSteps = Object
     .entries(mods)
     .filter(([name]) => !name.match(/Just Enough Items|Had Enough Items/))
-  const fmlStepsTotal = [...filteredLoaderSteps[0][1].loaderSteps]
+  const fmlStepsTotal = [...(filteredLoaderSteps[0]?.[1].loaderSteps ?? [])]
   filteredLoaderSteps.forEach(([,{ loaderSteps }], i) => {
     if (i === 0)
       return
@@ -150,7 +157,7 @@ export default async function parseDebugLog(_options: Args) {
       ],
     ])),
 
-    jeiPlugins: getJeiPlugins(debug_log),
+    jeiPlugins: await getJeiPlugins(debug_log, log),
 
     fmlStuff: {
       total: loaderStuffTime,
