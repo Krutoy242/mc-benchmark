@@ -184,10 +184,13 @@ Note for image scripts:
 # TOP JEI Registered Plugis
 
 <p align="center">
-<img src="https://quickchart.io/chart.png?w=700&c={
+<img src="https://quickchart.io/chart.png?w=500&h=200&c={
   options: {
     elements: { rectangle: { borderWidth: 1 } },
-    legend: false
+    legend: false,
+    scales: {
+      yAxes: [{ ticks: { fontSize: 9, fontFamily: 'Verdana' }}],
+    },
   },
   type: 'horizontalBar',
     data: {...(() => {
@@ -199,7 +202,7 @@ Note for image scripts:
         }]
       };
 `
-{{#each (truncate jeiPlugins 12)}}
+{{#each (truncate jeiPlugins 12 'Other')}}
 {{padEnd 5 .}}: {{@key}}{{#unless @last}};{{/unless}}
 {{/each}}
 `
