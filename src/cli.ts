@@ -2,8 +2,8 @@
 
 import process from 'node:process'
 import yargs from 'yargs'
-import parseDebugLog from '.'
-import logger from './log'
+import parseDebugLog from './index.js'
+import logger from './log.js'
 
 const argv = yargs(process.argv.slice(2))
   .positional('input', { type: 'string', describe: 'Debug.log path', default: 'logs/debug.log' })

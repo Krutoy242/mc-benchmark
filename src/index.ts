@@ -6,14 +6,14 @@
  * @link https://github.com/Krutoy242
  */
 
-import type { Args } from './cli'
+import type { Args } from './cli.js'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import process from 'node:process'
 import chalkWeak from 'chalk'
-import { compose } from './hbs'
-import logger from './log'
-import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse'
+import { compose } from './hbs.js'
+import logger from './log.js'
+import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse.js'
 
 const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
@@ -61,7 +61,7 @@ export default async function parseDebugLog(_options: Args) {
   //############################################################################
   // Numbers
 
-  const debug_log = await loadText(options.input, (err, fpath) => log.error(`Can't open file "${fpath}". Use option "--input=path/to/debug.log"\n${err}`))
+  const debug_log = await loadText(options.input, (err, fpath) => log.error(`Can't open file "${fpath}".\n${err}`))
   if (!debug_log)
     return
 

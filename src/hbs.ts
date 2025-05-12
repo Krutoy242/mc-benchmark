@@ -1,8 +1,9 @@
-import type logger from './log'
+import type logger from './log.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import Handlebars from 'handlebars'
+import helpers from './helpers.hbs.js'
 
 export async function compose(data: any, log: typeof logger, nondefaultTemplate: string | undefined): Promise<string> {
   await log.begin('Loading Handlebars template')
@@ -15,11 +16,7 @@ export async function compose(data: any, log: typeof logger, nondefaultTemplate:
   await log.info('Compiling template')
   const template = Handlebars.compile(templateRaw)
 
-  await log.info('Loading helpers')
-  // @ts-expect-error any
-  const helpers = await import('./helpers.hbs.js')
-
-  for (const [name, fnc] of Object.entries(helpers.default)) {
+  for (const [name, fnc] of Object.entries(helpers)) {
     Handlebars.registerHelper(name, fnc as any)
   }
 

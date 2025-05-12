@@ -1,9 +1,9 @@
-import type logger from './log'
+import type logger from './log.js'
 import process from 'node:process'
 import chalkWeak from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
-import { sum } from '.'
+import { sum } from './index.js'
 
 const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
