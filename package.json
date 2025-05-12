@@ -28,7 +28,7 @@
   "scripts": {
     "preview": "tsx src/cli.ts --cwd=D:/mc/E2E-E -vv --data=src/template.hbs.json > examples/benchmark.md",
     "preview-nospaces": "tsx scripts/nospaces.ts && tsx src/cli.ts --cwd=D:/mc/E2E-E -vv --data=src/template-nospaces.hbs.json --template=src/template-nospaces.hbs > examples/benchmark-nospaces.md",
-    "build": "rm -rf dist && tsx scripts/build.ts && tsc",
+    "build": "rm -rf dist/* && tsx scripts/build.ts && cp src/*.hbs dist && tsc",
     "release": "pnpm build && release-it"
   },
   "dependencies": {
