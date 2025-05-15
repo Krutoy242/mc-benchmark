@@ -18,7 +18,7 @@ Note for image scripts:
   - This characters cant be used: +<"%#
 -->
 <p align="center">
-<img src="https://quickchart.io/chart.png?w=400&h=60&c={ type: 'horizontalBar', data: { datasets: [  {label: 'Mixins\n', data: [ 36.0 ]},  {label: 'Construction\n', data: [ 58.0 ]},  {label: 'PreInit\n', data: [137.0 ]},  {label: 'Init\n', data: [ 52.0 ]},  ] }, options: { layout: { padding: { top: 10 } }, scales: { xAxes: [{display: false, stacked: true}], yAxes: [{display: false, stacked: true}], }, elements: {rectangle: {borderWidth: 2}}, legend: {display: false}, plugins: {datalabels: { color: 'white', font: { family: 'Consolas', }, formatter: (value, context) => [context.dataset.label, value, 's'].join('') }}, annotation: { clip: false, annotations: [{ type: 'line', scaleID: 'x-axis-0', value: 36, borderColor: 'black', label: { content: 'Window appear', fontSize: 8, enabled: true, xPadding: 8, yPadding: 2, yAdjust: -20 }, } ] }, } }"/>
+<img src="https://quickchart.io/chart.png?w=400&h=60&c={type:'horizontalBar',data:{datasets:[{label:'Mixins\n',data:[36.0]},{label:'Construction\n',data:[58.0]},{label:'PreInit\n',data:[137.0]},{label:'Init\n',data:[52.0]},]},options:{layout:{padding:{top:10}},scales:{xAxes:[{display:false,stacked:true}],yAxes:[{display:false,stacked:true}],},elements:{rectangle:{borderWidth:2}},legend:{display:false},plugins:{datalabels:{color:'white',font:{family:'Consolas',},formatter:(value,context)=>[context.dataset.label,value,'s'].join('')}},annotation:{clip:false,annotations:[{type:'line',scaleID:'x-axis-0',value:36,borderColor:'black',label:{content:'Windowappear',fontSize:8,enabled:true,xPadding:8,yPadding:2,yAdjust:-20},}]},}}"/>
 </p>
 
 <br>
