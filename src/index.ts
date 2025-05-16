@@ -188,7 +188,15 @@ export default async function parseDebugLog(_options: Args) {
     }
   }
 
-  const composed = await compose(data, log, options.template)
+  let composed = await compose(data, log, options.template)
+
+  if (options.nospaces) {
+    composed = composed
+      .replace(/(<img src="https:\/\/quickchart\.io\/chart.+?=\{)([\s\S]+?)(\}\s*"\s*\/\s*>)/g, (_, a, b, c) => a + b
+        .replace(/\s*\n\s*/g, ' ')
+        .replace(/\s+/g, '%20') + c)
+  }
+
   process.stdout.write(composed)
 
   log.result(`Load Time total: ${mcLoadTime}`)

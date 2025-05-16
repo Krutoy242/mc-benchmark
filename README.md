@@ -46,6 +46,7 @@ Options:
   -m, --modpack   Modpack name in header  [string]
   -v, --verbose   Verbose level -v INFO or -vv DEBUG  [count]
       --cwd       Minecraft directory to OPEN files from  [string] [default: "./"]
+  -n, --nospaces  Replace all space characters "\s" in image code. Useful for posting on GitHub.  [boolean] [default: false]
 ```
 
 ### Examples
