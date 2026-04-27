@@ -129,18 +129,24 @@ export async function getMods(
     result[modName].steps[stepIndex] += time
   }
 
+  const modIdToName: Record<string, string> = {}
+
   // Get file for every mod
   for (const { groups } of debug_log.matchAll(
     // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/no-misleading-capturing-group
-    /\[Client thread\/DEBUG\] \[FML\]: \t[^(]+\((?!API: )(?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
+    /\[Client thread\/DEBUG\] \[FML\]: \t(?<modId>[^(]+)\((?!API: )(?<modName>.+):[^)]+\): (?<fileName>.+?\.jar) \(.*\)/gi,
   )) {
-    const modWithFile = result[groups!.modName]
+    const modId = groups!.modId.trim()
+    const modName = groups!.modName.trim()
+    modIdToName[modId] = modName
+
+    const modWithFile = result[modName]
     if (modWithFile) {
       modWithFile.fileName = groups!.fileName
     }
     else {
       await log.info(
-        `"${chalk.hex('558855').bold(groups!.modName)}" `
+        `"${chalk.hex('558855').bold(modName)}" `
         + `from "${chalk.hex('558855')(groups!.fileName)}" `
         + `file, but not a mod`,
       )
@@ -150,6 +156,25 @@ export async function getMods(
   // -------------------------------------------
   // Additional parts
   // -------------------------------------------
+
+  const vfBakeEvents = [...debug_log.matchAll(
+    /\[VintageFix\]: \s+FMLMod:(?<modId>[^{]+)\{[^}]+\}: (?<time>\d+(\.\d+)?) (?<unit>ms|s)/gi
+  )]
+
+  for (const { groups } of vfBakeEvents) {
+    const modId = groups!.modId.trim()
+    const modName = modIdToName[modId] ?? modId
+    const time = groups!.unit === 'ms' 
+      ? Number.parseFloat(groups!.time) / 1000 
+      : Number.parseFloat(groups!.time)
+
+    await addParts(result, {
+      name: '[VF ModelBake]',
+      rgx: modName,
+      step: 'Other',
+      time,
+    }, log)
+  }
 
   await addParts(result, {
     name: '[JEI Ingredient Filter]',

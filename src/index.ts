@@ -93,11 +93,22 @@ export default async function parseDebugLog(_options: Args) {
   const pie: PieMod[] = []
 
   for (const [name, mod] of Object.entries(mods).slice(0, options.detailed)) {
-    const modSlice: PieMod = { name, color: mod.color, time: sum(mod.steps) }
-    pie.push(modSlice)
+    const totalModTime = sum(mod.steps) + (mod.parts ?? []).reduce((acc, p) => acc + p.time, 0)
+    let mainModTime = sum(mod.steps)
+    const validParts: PieMod[] = []
+
     ;(mod.parts ?? []).forEach((part) => {
-      pie.push(part)
+      if (part.time >= totalModTime * 0.15) {
+        validParts.push(part)
+      }
+      else {
+        mainModTime += part.time
+      }
     })
+
+    const modSlice: PieMod = { name, color: mod.color, time: mainModTime }
+    pie.push(modSlice)
+    validParts.forEach(part => pie.push(part))
   }
 
   const totalTimes = Object.values(mods).map(m => sum(m.steps)).slice(options.detailed)
