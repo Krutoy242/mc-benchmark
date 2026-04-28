@@ -20,7 +20,7 @@ const argv = yargs(process.argv.slice(2))
   .command('[input]', '')
   .parseSync()
 
-export type Args = typeof argv
+// export type Args = typeof argv
 
 logger.level -= argv.verbose
 
