@@ -14,11 +14,11 @@ export async function compose(data: any, log: typeof logger, nondefaultTemplate:
   const templateRaw = fs.readFileSync(templatePath, 'utf-8')
 
   await log.info('Compiling template')
-  const template = Handlebars.compile(templateRaw)
-
+  const hbs = Handlebars.create()
   for (const [name, fnc] of Object.entries(helpers)) {
-    Handlebars.registerHelper(name, fnc as any)
+    hbs.registerHelper(name, fnc as any)
   }
+  const template = hbs.compile(templateRaw)
 
   await log.info('Applying data to template')
   return template(data)
