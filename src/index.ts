@@ -160,7 +160,7 @@ export default async function parseDebugLog(_options: Options) {
         .concat([[
           '[Mod Average]',
           sumLoaderSteps
-            .map(n => n / filteredLoaderSteps.filter(([,m]) => sum(m.steps)).length)
+            .map(n => n / Math.max(1, filteredLoaderSteps.filter(([,m]) => sum(m.steps)).length))
             .filter(Boolean),
         ]]),
     ),
