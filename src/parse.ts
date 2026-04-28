@@ -127,7 +127,7 @@ export async function getMods(
 
     const stepIndex = Object.values(loaderSteps).findIndex(rgx => stepName.match(rgx))
     const time = Number.parseFloat(timeStr)
-    result[modName].steps[stepIndex] += time
+    result[modName].steps[stepIndex !== -1 ? stepIndex : Object.keys(loaderSteps).length] += time
   }
 
   const modIdToName: Record<string, string> = {}
