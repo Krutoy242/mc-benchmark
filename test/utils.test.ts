@@ -9,6 +9,9 @@ describe('utils', () => {
     expect(secondsToMinutes(125)).toBe('2:05')
     expect(secondsToMinutes(0)).toBe('0:00')
     expect(secondsToMinutes(5.5)).toBe('0:05')
+    expect(secondsToMinutes(-10)).toBe('0:00')
+    expect(secondsToMinutes(Number.NaN)).toBe('0:00')
+    expect(secondsToMinutes(Number.POSITIVE_INFINITY)).toBe('0:00')
   })
 
   it('sum', () => {

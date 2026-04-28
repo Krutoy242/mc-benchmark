@@ -1,6 +1,9 @@
 export function secondsToMinutes(sec: number): string {
-  const min = Math.floor(sec / 60)
-  return `${min}:${String(Math.floor(sec) - min * 60).padStart(2, '0')}`
+  if (Number.isNaN(sec) || !Number.isFinite(sec))
+    return '0:00'
+  const absoluteSec = Math.max(0, sec)
+  const min = Math.floor(absoluteSec / 60)
+  return `${min}:${String(Math.floor(absoluteSec) - min * 60).padStart(2, '0')}`
 }
 
 export function sum(arr: Array<number>): number {
