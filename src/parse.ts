@@ -48,7 +48,7 @@ export interface ModStore { [modName: string]: Mod }
 // ------------------------------------------------
 const mcFinishLoadingRgx = /(\[FML\]: Bar Finished: Loading took|\[VintageFix\]: Game launch took|\[Universal Tweaks\]: The game loaded in approximately) (\S*)(s| seconds)/g
 
-function timeToSeconds(timeStr: string): number {
+export function timeToSeconds(timeStr: string): number {
   const [hours, minutes, seconds] = timeStr.split(':').map(Number)
   return hours * 3600 + minutes * 60 + seconds
 }

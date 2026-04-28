@@ -6,7 +6,7 @@
  * @link https://github.com/Krutoy242
  */
 
-import type { Args } from './cli.js'
+import type { Options } from './types.js'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import process from 'node:process'
@@ -14,22 +14,14 @@ import chalkWeak from 'chalk'
 import { compose } from './hbs.js'
 import logger from './log.js'
 import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse.js'
+import { columnSumm, secondsToMinutes, sum } from './utils.js'
 
 const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
 //############################################################################
 //############################################################################
 
-function secondsToMinutes(sec: number): string {
-  const min = Math.floor(sec / 60)
-  return `${min}:${String(Math.floor(sec) - min * 60).padStart(2, '0')}`
-}
-
-export function sum(arr: Array<number>): number {
-  return arr.reduce((a, v) => a + v, 0)
-}
-
-export default async function parseDebugLog(_options: Args) {
+export default async function parseDebugLog(_options: Options) {
   const options = {
     mkdirSync,
     readFileSync,
