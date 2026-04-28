@@ -74,7 +74,8 @@ export function getTimeline(debug_log: string) {
   const timeline: [name: string, time: number, stamp?: string][] = []
 
   const timeStampRgx = /^\[(\d+:\d+:\d+)\] /
-  const prevTimeStamp = debug_log.match(timeStampRgx)![1]
+  const prevTimeStampMatch = debug_log.match(timeStampRgx)
+  const prevTimeStamp = prevTimeStampMatch ? prevTimeStampMatch[1] : '00:00:00'
   let prevMoment = timeToSeconds(prevTimeStamp)
   let pointer = 0
 
