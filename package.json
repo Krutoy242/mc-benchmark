@@ -31,7 +31,7 @@
     "build": "rimraf dist && copyfiles -u 1 \"src/**/*.hbs\" dist && tsc",
     "test": "vitest run",
     "update-readme": "tsx scripts/update-readme.ts",
-    "release": "pnpm build && tsx scripts/update-readme.ts && semantic-release"
+    "release": "tsx scripts/release.ts"
   },
   "dependencies": {
     "chalk": "^5.6.2",
