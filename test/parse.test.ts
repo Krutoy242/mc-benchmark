@@ -29,10 +29,10 @@ describe('parse', () => {
     const debug_log = readFileSync(logPath, 'utf8')
     const lines = debug_log.split('\n')
     const mods = await getMods(debug_log, lines, undefined)
-    
+
     expect(Object.keys(mods).length).toBeGreaterThan(0)
     // Check for some known mods in the fixture if possible
-    // Since I don't know exactly what's in "D:/mc/E2E-E/logs/debug.log" 
+    // Since I don't know exactly what's in "D:/mc/E2E-E/logs/debug.log"
     // but typically it has many mods.
   })
 })

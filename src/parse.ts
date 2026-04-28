@@ -98,7 +98,7 @@ export function getTimeline(debug_log: string, lines: string[]) {
 export async function getMods(
   debug_log: string,
   lines: string[],
-  crafttweaker_log: string | undefined,
+  _crafttweaker_log: string | undefined,
 ) {
   let result: ModStore = {}
 
@@ -156,14 +156,14 @@ export async function getMods(
   // -------------------------------------------
 
   const vfBakeEvents = [...debug_log.matchAll(
-    /\[VintageFix\]: \s+FMLMod:(?<modId>[^{]+)\{[^}]+\}: (?<time>\d+(\.\d+)?) (?<unit>ms|s)/gi
+    /\[VintageFix\]: \s+FMLMod:(?<modId>[^{]+)\{[^}]+\}: (?<time>\d+(\.\d+)?) (?<unit>ms|s)/gi,
   )]
 
   for (const { groups } of vfBakeEvents) {
     const modId = groups!.modId.trim()
     const modName = modIdToName[modId] ?? modId
-    const time = groups!.unit === 'ms' 
-      ? Number.parseFloat(groups!.time) / 1000 
+    const time = groups!.unit === 'ms'
+      ? Number.parseFloat(groups!.time) / 1000
       : Number.parseFloat(groups!.time)
 
     await addParts(result, {

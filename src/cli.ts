@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import process from 'node:process'
-import yargs from 'yargs'
 import { consola } from 'consola'
+import yargs from 'yargs'
 import parseDebugLog from './index.js'
 
 const argv = yargs(process.argv.slice(2))
@@ -22,6 +22,9 @@ const argv = yargs(process.argv.slice(2))
 
 // export type Args = typeof argv
 
+consola.options.stdout = process.stderr
+consola.options.stderr = process.stderr
+;(consola.options as any).fancy = process.stderr.isTTY
 consola.level = Math.max(1, 2 + (argv.verbose ?? 0))
 
 await parseDebugLog(argv)

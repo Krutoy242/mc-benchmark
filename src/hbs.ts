@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Handlebars from 'handlebars'
 import { consola } from 'consola'
+import Handlebars from 'handlebars'
 import helpers from './helpers.hbs.js'
 
 export async function compose(data: any, nondefaultTemplate: string | undefined): Promise<string> {
