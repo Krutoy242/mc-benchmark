@@ -29,6 +29,7 @@
     "preview": "tsx src/cli.ts --cwd=D:/mc/E2E-E -vv --data=src/template.hbs.json > examples/benchmark.md",
     "preview-nospaces": "tsx src/cli.ts --cwd=D:/mc/E2E-E -vv --nospaces > examples/benchmark-nospaces.md",
     "build": "rimraf dist && copyfiles -u 1 \"src/**/*.hbs\" dist && tsc",
+    "test": "vitest run",
     "release": "pnpm build && semantic-release"
   },
   "dependencies": {
