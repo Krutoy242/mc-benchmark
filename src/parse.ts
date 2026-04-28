@@ -53,7 +53,7 @@ export function timeToSeconds(timeStr: string): number {
   return hours * 3600 + minutes * 60 + seconds
 }
 
-export function getTimeline(debug_log: string) {
+export function getTimeline(debug_log: string, lines: string[]) {
   const timelineSteps: { [key: string]: { rgx: RegExp, stamp?: string } } = {
     Mixins: {
       rgx: /\[Client thread\/INFO\] \[FML\]: -- System Details --/,
@@ -70,7 +70,6 @@ export function getTimeline(debug_log: string) {
     },
   }
 
-  const lines = debug_log.split('\n')
   const timeline: [name: string, time: number, stamp?: string][] = []
 
   const timeStampRgx = /^\[(\d+:\d+:\d+)\] /
@@ -99,6 +98,7 @@ export function getTimeline(debug_log: string) {
 
 export async function getMods(
   debug_log: string,
+  lines: string[],
   crafttweaker_log: string | undefined,
   log: typeof logger,
 ) {
@@ -217,7 +217,6 @@ export async function getMods(
     )?.[1] ?? '0') / 1000,
   }, log)
 
-  const lines = debug_log.split('\n')
   const duration = logLineDuration(lines, '\\[tconstruct-TextureGen\\]: Generated \\d+ Textures for Materials')
   if (duration > 0) {
     await addParts(result, {
@@ -386,7 +385,7 @@ function logLineDuration(lines: string[], rgxText: string): number {
     if (!currTime)
       continue
     for (let j = i - 1; j >= 0; j--) {
-      const prevTime = lines[j].match(/^\[(\d+:\d+:\d+)\]/)?.[1]
+      const prevTime = lines[j].match(/^\[(\d+:\\d+:\\d+)\]/)?.[1]
       if (!prevTime)
         continue
       const diffTime = timeToSeconds(currTime) - timeToSeconds(prevTime)

@@ -57,9 +57,11 @@ export default async function parseDebugLog(_options: Options) {
   if (!debug_log)
     return
 
+  const debug_lines = debug_log.split('\n')
+
   const crafttweaker_log = await loadText(options.ctlog, (_err, fpath) => log.warn(`Can't open file "${fpath}". Use option "--ctlog=path/to/crafttweker.log"`))
 
-  const mods = await getMods(debug_log, crafttweaker_log, log)
+  const mods = await getMods(debug_log, debug_lines, crafttweaker_log, log)
 
   if (Object.keys(mods).length === 0) {
     if (!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
@@ -135,7 +137,7 @@ export default async function parseDebugLog(_options: Options) {
   if (otherFmlStuffTime > 0)
     fmlStuff.push({ color: '444444', name: 'Other', time: otherFmlStuffTime })
 
-  const timeline = getTimeline(debug_log)
+  const timeline = getTimeline(debug_log, debug_lines)
 
   // Remove FML steps without time
   const filteredLoaderSteps = Object.entries(mods)
