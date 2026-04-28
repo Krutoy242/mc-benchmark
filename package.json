@@ -31,7 +31,7 @@
     "build": "rimraf dist && copyfiles -u 1 \"src/**/*.hbs\" dist && tsc",
     "test": "vitest run",
     "update-readme": "tsx scripts/update-readme.ts",
-    "release": "tsx scripts/release.ts"
+    "release": "npx semantic-release"
   },
   "dependencies": {
     "chalk": "^5.6.2",
@@ -44,6 +44,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.19.0",
     "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^11.0.6",
     "@types/color-hash": "^2.0.0",
