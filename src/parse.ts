@@ -240,12 +240,7 @@ export function getMcLoadTime(debug_log: string): number {
   return Math.max(0, ...listOfLoadTime)
 }
 
-let jeiPluginsCache: Record<string, number>
-
 export async function getJeiPlugins(debug_log: string, log: typeof logger) {
-  if (jeiPluginsCache)
-    return jeiPluginsCache
-
   const pluginRgx = /\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (?<name>.*) in (?<time>\d+) ms/g
   const jeiPlugins: { name: string, time: number }[] = []
   for (const { groups } of debug_log.matchAll(pluginRgx)) {
@@ -261,7 +256,7 @@ export async function getJeiPlugins(debug_log: string, log: typeof logger) {
   jeiPlugins.sort(({ time: a }, { time: b }) => b - a)
 
   // const showPlugins = 15 // options.plugins
-  jeiPluginsCache = Object.fromEntries(jeiPlugins
+  const result = Object.fromEntries(jeiPlugins
     // .slice(0, showPlugins)
     // .concat([{
     //   name: `Other ${jeiPlugins.length - showPlugins} Plugins`,
@@ -272,11 +267,11 @@ export async function getJeiPlugins(debug_log: string, log: typeof logger) {
     // }])
     .map(o => [o.name, o.time]))
 
-  if (jeiPluginsCache.length <= 0) {
+  if (Object.keys(result).length === 0) {
     await log.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
   }
 
-  return jeiPluginsCache
+  return result
 }
 
 async function addParts(mods: ModStore, part: {
