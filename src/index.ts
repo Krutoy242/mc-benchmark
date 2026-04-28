@@ -205,9 +205,3 @@ export default async function parseDebugLog(_options: Options) {
   log.result(`Load Time total: ${mcLoadTime}`)
 }
 
-function columnSumm(arr: number[][]): number[] {
-  return arr.reduce((r, a) => {
-    a.forEach((b, i) => r[i] = (r[i] || 0) + b)
-    return r
-  }, [])
-}
