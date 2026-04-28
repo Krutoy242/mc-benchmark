@@ -22,7 +22,7 @@ const logger = {
       process.stderr.write(` ${chalk.gray(`${s} ✔`)}\n`)
   },
   step(s = '.') {
-    if (this.steps % (Math.floor(this.maxSteps / 10)) === 0) {
+    if (this.steps % (Math.max(1, Math.floor(this.maxSteps / 10))) === 0) {
       if (this.level <= 1)
         process.stderr.write(s)
     }
