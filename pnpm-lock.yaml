@@ -11,6 +11,9 @@ importers:
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
+      citty:
+        specifier: ^0.2.2
+        version: 0.2.2
       color:
         specifier: ^5.0.3
         version: 5.0.3
@@ -23,9 +26,6 @@ importers:
       handlebars:
         specifier: ^4.7.9
         version: 4.7.9
-      yargs:
-        specifier: ^17.7.2
-        version: 17.7.2
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^4.19.0
@@ -45,9 +45,6 @@ importers:
       '@types/node':
         specifier: ^22.19.17
         version: 22.19.17
-      '@types/yargs':
-        specifier: ^17.0.35
-        version: 17.0.35
       copyfiles:
         specifier: ^2.4.1
         version: 2.4.1
@@ -995,12 +992,6 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
-  '@types/yargs-parser@21.0.3':
-    resolution: {integrity: sha512-I4q9QU9MQv4oEOz4tAHJtNz1cwuLxn2F3xcc2iV5WdqLPpUnj30aUuxt1mAxYTG+oe8CZMV/+6rU4S4gRDzqtQ==}
-
-  '@types/yargs@17.0.35':
-    resolution: {integrity: sha512-qUHkeCyQFxMXg79wQfTtfndEC+N9ZZg76HJftDJp+qH2tV7Gj4OJi7l+PiWwJ+pWtW8GwSmqsDj/oymhrTWXjg==}
-
   '@typescript-eslint/eslint-plugin@8.59.1':
     resolution: {integrity: sha512-BOziFIfE+6osHO9FoJG4zjoHUcvI7fTNBSpdAwrNH0/TLvzjsk2oo8XSSOT2HhqUyhZPfHv4UOffoJ9oEEQ7Ag==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -1279,6 +1270,9 @@ packages:
   ci-info@4.4.0:
     resolution: {integrity: sha512-77PSwercCZU2Fc4sX94eF8k8Pxte6JAwL4/ICZLFjJLqegs7kCuAsqqj/70NQF6TvDpgFjkubQB2FW2ZZddvQg==}
     engines: {node: '>=8'}
+
+  citty@0.2.2:
+    resolution: {integrity: sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w==}
 
   clean-regexp@1.0.0:
     resolution: {integrity: sha512-GfisEZEJvzKrmGWkvfhgzcz/BllN1USeqD2V6tg14OAOgaCD2Z/PUEuxnAZ/nPvmaHRG7a8y77p1T/IRQ4D1Hw==}
@@ -4042,12 +4036,6 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  '@types/yargs-parser@21.0.3': {}
-
-  '@types/yargs@17.0.35':
-    dependencies:
-      '@types/yargs-parser': 21.0.3
-
   '@typescript-eslint/eslint-plugin@8.59.1(@typescript-eslint/parser@8.59.1(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
@@ -4358,6 +4346,8 @@ snapshots:
   character-entities@2.0.2: {}
 
   ci-info@4.4.0: {}
+
+  citty@0.2.2: {}
 
   clean-regexp@1.0.0:
     dependencies:
