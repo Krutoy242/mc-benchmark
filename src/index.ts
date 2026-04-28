@@ -61,7 +61,7 @@ export default async function parseDebugLog(_options: Options) {
 
   const mods = await getMods(debug_log, crafttweaker_log, log)
 
-  if (!Object.keys(mods)) {
+  if (Object.keys(mods).length === 0) {
     if (!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
       return await log.error(`The file "${options.input}" does not contain`
         + ` rich debugging information. It is most likely not actual debug.log.`
