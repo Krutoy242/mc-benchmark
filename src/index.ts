@@ -33,7 +33,7 @@ export default async function parseDebugLog(_options: Options) {
   const log: typeof logger = (options as any).defaultLogger ?? logger
 
   async function loadText(fpath: string, onError: (err: any, fpath: string) => void | Promise<void>) {
-    await log.begin(`Opening file "${fpath}"`)
+    log.begin(`Opening file "${fpath}"`)
     let fileContent
     try {
       fileContent = options.readFileSync(resolve(options.cwd ?? './', fpath), 'utf8')
@@ -63,13 +63,13 @@ export default async function parseDebugLog(_options: Options) {
 
   if (Object.keys(mods).length === 0) {
     if (!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
-      return await log.error(`The file "${options.input}" does not contain`
+      return log.error(`The file "${options.input}" does not contain`
         + ` rich debugging information. It is most likely not actual debug.log.`
         + `\n\nHint:\nSome MC launchers disable generating of debug.log file by default.`
         + ` Find out how to enable it.`)
     }
     else {
-      return await log.error(`The file "${options.input}" not full.`
+      return log.error(`The file "${options.input}" not full.`
         + ` Your Minecraft not loaded completely or file is corrupted.`)
     }
   }
@@ -115,7 +115,7 @@ export default async function parseDebugLog(_options: Options) {
       })
     }
     else {
-      await log.info(`Cannot make pie section `
+      log.info(`Cannot make pie section `
         + `"${chalk.hex('007777')(text)}" since no mods found at all`)
     }
   }
@@ -165,7 +165,7 @@ export default async function parseDebugLog(_options: Options) {
         ]]),
     ),
 
-    jeiPlugins: await getJeiPlugins(debug_log, log),
+    jeiPlugins: getJeiPlugins(debug_log, log),
 
     fmlStuff: {
       total: loaderStuffTime,
@@ -173,10 +173,10 @@ export default async function parseDebugLog(_options: Options) {
     },
   }
 
-  await log.begin('Composing output')
+  log.begin('Composing output')
 
   if (options.data) {
-    await log.begin('Writing file')
+    log.begin('Writing file')
 
     const dataJson = JSON.stringify(data, null, 2)
       // prettify numerical arrays
@@ -187,7 +187,7 @@ export default async function parseDebugLog(_options: Options) {
       saveText(dataJson, options.data)
     }
     catch (error) {
-      await log.error(`Can't save output file "${options.data}". Use option "--data=path/to/data.json"\n\n${error}`)
+      log.error(`Can't save output file "${options.data}". Use option "--data=path/to/data.json"\n\n${error}`)
     }
   }
 

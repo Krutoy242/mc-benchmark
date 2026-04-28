@@ -3,7 +3,7 @@ import process from 'node:process'
 import chalkWeak from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
-import { sum } from './index.js'
+import { sum } from './utils.js'
 
 const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
@@ -110,10 +110,10 @@ export async function getMods(
   )
   const fullLog = [...debug_log.matchAll(fullSearchRgx)]
 
-  await log.begin('Parsing mods', fullLog.length)
+  log.begin('Parsing mods', fullLog.length)
 
   for (const { groups } of fullLog) {
-    await log.step()
+    log.step()
     const { stepName, modName, time: timeStr } = groups as { [key: string]: string }
 
     // Skip Forge steps
@@ -146,7 +146,7 @@ export async function getMods(
       modWithFile.fileName = groups!.fileName
     }
     else {
-      await log.info(
+      log.info(
         `"${chalk.hex('558855').bold(modName)}" `
         + `from "${chalk.hex('558855')(groups!.fileName)}" `
         + `file, but not a mod`,
@@ -240,7 +240,7 @@ export function getMcLoadTime(debug_log: string): number {
   return Math.max(0, ...listOfLoadTime)
 }
 
-export async function getJeiPlugins(debug_log: string, log: typeof logger) {
+export function getJeiPlugins(debug_log: string, log: typeof logger) {
   const pluginRgx = /\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (?<name>.*) in (?<time>\d+) ms/g
   const jeiPlugins: { name: string, time: number }[] = []
   for (const { groups } of debug_log.matchAll(pluginRgx)) {
@@ -268,7 +268,7 @@ export async function getJeiPlugins(debug_log: string, log: typeof logger) {
     .map(o => [o.name, o.time]))
 
   if (Object.keys(result).length === 0) {
-    await log.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
+    log.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
   }
 
   return result
@@ -282,7 +282,7 @@ async function addParts(mods: ModStore, part: {
 }, log: typeof logger) {
   // eslint-disable-next-line unicorn/prefer-number-properties
   if (!part.time || isNaN(part.time)) {
-    return await log.info(`Didnt add mod `
+    return log.info(`Didnt add mod `
       + `"${chalk.hex('c2aa0e')(part.name)}" part of mod `
       + `${chalk.hex('94852e')(part.rgx)} since it took 0 sec or less`)
   }
@@ -293,7 +293,7 @@ async function addParts(mods: ModStore, part: {
       : part.rgx.test(modName))
 
   if (!entry) {
-    return await log.warn(`Could not find part `
+    return log.warn(`Could not find part `
       + `"${chalk.hex('c2aa0e')(part.name)}" with regex `
       + `${chalk.hex('94852e')(part.rgx)}`)
   }
@@ -307,7 +307,7 @@ async function addParts(mods: ModStore, part: {
   else {
     const stepIndex = fmlStepsKeys.indexOf(part.step)
     if (mod.steps[stepIndex] - part.time < 0) {
-      await log.info(
+      log.info(
         `${chalk.hex('558855').bold(modName)} `
         + `step ${part.step} `
         + `time: ${chalk.hex('558855')(mod.steps[stepIndex])}s, but `
