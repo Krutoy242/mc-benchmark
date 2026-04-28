@@ -1,14 +1,13 @@
-import type logger from './log.js'
 import process from 'node:process'
 import chalkWeak from 'chalk'
 import Color from 'color'
 import ColorHash from 'color-hash'
+import { consola } from 'consola'
 import { sum } from './utils.js'
 
 const chalk = chalkWeak.constructor({ level: process.stderr.isTTY ? 3 : 0 })
 
 // @ts-expect-error default
-
 const colorHash = new (ColorHash.default ?? ColorHash)({ lightness: [0.2625, 0.375, 0.4875] })
 
 function escapeRegex(str: string) {
@@ -100,7 +99,6 @@ export async function getMods(
   debug_log: string,
   lines: string[],
   crafttweaker_log: string | undefined,
-  log: typeof logger,
 ) {
   let result: ModStore = {}
 
@@ -110,10 +108,9 @@ export async function getMods(
   )
   const fullLog = [...debug_log.matchAll(fullSearchRgx)]
 
-  log.begin('Parsing mods', fullLog.length)
+  consola.start(`Parsing mods [${fullLog.length}]`)
 
   for (const { groups } of fullLog) {
-    log.step()
     const { stepName, modName, time: timeStr } = groups as { [key: string]: string }
 
     // Skip Forge steps
@@ -146,7 +143,7 @@ export async function getMods(
       modWithFile.fileName = groups!.fileName
     }
     else {
-      log.info(
+      consola.info(
         `"${chalk.hex('558855').bold(modName)}" `
         + `from "${chalk.hex('558855')(groups!.fileName)}" `
         + `file, but not a mod`,
@@ -174,7 +171,7 @@ export async function getMods(
       rgx: modName,
       step: 'Other',
       time,
-    }, log)
+    })
   }
 
   await addParts(result, {
@@ -184,29 +181,17 @@ export async function getMods(
     time: toSeconds(debug_log.match(
       /\[(?:jei|Had\s?Enough\s?Items)\]: Building ingredient filter (?:and search trees )?took (?<num>\d+\.\d+) (?<time>m?s)/,
     )?.groups),
-  }, log)
+  })
 
-  const jeiPlugins = Object.values(await getJeiPlugins(debug_log, log))
+  const jeiPlugins = Object.values(await getJeiPlugins(debug_log))
   if (jeiPlugins.length) {
     await addParts(result, {
       name: '[JEI Plugins]',
       rgx: /(Just|Had) Enough Items/i,
       step: 'LoadComplete',
       time: sum(jeiPlugins),
-    }, log)
+    })
   }
-
-  // if (crafttweaker_log) {
-  //   const scriptLoading = [...crafttweaker_log.matchAll(
-  //     /\[.+?\]\[CLIENT\]\[\w+\] Completed script loading in: (\d+)ms/g,
-  //   )]
-  //   await addParts(result, {
-  //     name: '[CT Script Loading]',
-  //     rgx: 'CraftTweaker2',
-  //     step: 'Other',
-  //     time: sum(scriptLoading.map(([,n]) => Number.parseFloat(n ?? '0') / 1000)),
-  //   }, log)
-  // }
 
   await addParts(result, {
     name: '[Oredict Melting]',
@@ -215,7 +200,7 @@ export async function getMods(
     time: Number.parseFloat(debug_log.match(
       /Oredict melting recipes finished in (\d+\.\d+) ms/,
     )?.[1] ?? '0') / 1000,
-  }, log)
+  })
 
   const duration = logLineDuration(lines, '\\[tconstruct-TextureGen\\]: Generated \\d+ Textures for Materials')
   if (duration > 0) {
@@ -224,13 +209,14 @@ export async function getMods(
       rgx: /^Tinkers' Construct|Tinkers' Antique/,
       step: 'Other',
       time: duration,
-    }, log)
+    })
   }
 
   // Sort object
   result = Object.fromEntries(Object.entries(result)
     .sort(([,{ steps: a }], [,{ steps: b }]) => sum(b) - sum(a)))
 
+  consola.success('Parsing mods done')
   return result
 }
 
@@ -239,7 +225,7 @@ export function getMcLoadTime(debug_log: string): number {
   return Math.max(0, ...listOfLoadTime)
 }
 
-export function getJeiPlugins(debug_log: string, log: typeof logger) {
+export function getJeiPlugins(debug_log: string) {
   const pluginRgx = /\[(?:jei|Had\s?Enough\s?Items)\]: Registered +plugin: (?<name>.*) in (?<time>\d+) ms/g
   const jeiPlugins: { name: string, time: number }[] = []
   for (const { groups } of debug_log.matchAll(pluginRgx)) {
@@ -254,20 +240,11 @@ export function getJeiPlugins(debug_log: string, log: typeof logger) {
 
   jeiPlugins.sort(({ time: a }, { time: b }) => b - a)
 
-  // const showPlugins = 15 // options.plugins
   const result = Object.fromEntries(jeiPlugins
-    // .slice(0, showPlugins)
-    // .concat([{
-    //   name: `Other ${jeiPlugins.length - showPlugins} Plugins`,
-    //   time: jeiPlugins
-    //     .slice(showPlugins)
-    //     .map(o => o.time)
-    //     .reduce((a, v) => a + v),
-    // }])
     .map(o => [o.name, o.time]))
 
   if (Object.keys(result).length === 0) {
-    log.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
+    consola.info(`Cannot find any of ${chalk.hex('c2aa0e')('JEI')} plugins`)
   }
 
   return result
@@ -278,10 +255,10 @@ async function addParts(mods: ModStore, part: {
   rgx: string | RegExp
   step: keyof typeof loaderSteps | 'Other'
   time: number
-}, log: typeof logger) {
+}) {
   // eslint-disable-next-line unicorn/prefer-number-properties
   if (!part.time || isNaN(part.time)) {
-    return log.info(`Didnt add mod `
+    return consola.info(`Didnt add mod `
       + `"${chalk.hex('c2aa0e')(part.name)}" part of mod `
       + `${chalk.hex('94852e')(part.rgx)} since it took 0 sec or less`)
   }
@@ -292,7 +269,7 @@ async function addParts(mods: ModStore, part: {
       : part.rgx.test(modName))
 
   if (!entry) {
-    return log.warn(`Could not find part `
+    return consola.warn(`Could not find part `
       + `"${chalk.hex('c2aa0e')(part.name)}" with regex `
       + `${chalk.hex('94852e')(part.rgx)}`)
   }
@@ -306,7 +283,7 @@ async function addParts(mods: ModStore, part: {
   else {
     const stepIndex = fmlStepsKeys.indexOf(part.step)
     if (mod.steps[stepIndex] - part.time < 0) {
-      log.info(
+      consola.info(
         `${chalk.hex('558855').bold(modName)} `
         + `step ${part.step} `
         + `time: ${chalk.hex('558855')(mod.steps[stepIndex])}s, but `

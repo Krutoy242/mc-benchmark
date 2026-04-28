@@ -2,8 +2,8 @@
 
 import process from 'node:process'
 import yargs from 'yargs'
+import { consola } from 'consola'
 import parseDebugLog from './index.js'
-import logger from './log.js'
 
 const argv = yargs(process.argv.slice(2))
   .positional('input', { type: 'string', describe: 'Debug.log path', default: 'logs/debug.log' })
@@ -22,6 +22,6 @@ const argv = yargs(process.argv.slice(2))
 
 // export type Args = typeof argv
 
-logger.level -= argv.verbose
+consola.level = Math.max(1, 2 + (argv.verbose ?? 0))
 
 await parseDebugLog(argv)

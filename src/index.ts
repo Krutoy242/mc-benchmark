@@ -11,8 +11,8 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import process from 'node:process'
 import chalkWeak from 'chalk'
+import { consola } from 'consola'
 import { compose } from './hbs.js'
-import logger from './log.js'
 import { getFmlStuff, getJeiPlugins, getMcLoadTime, getMods, getTimeline, loaderSteps } from './parse.js'
 import { columnSumm, secondsToMinutes, sum } from './utils.js'
 
@@ -30,10 +30,10 @@ export default async function parseDebugLog(_options: Options) {
     ..._options,
   }
 
-  const log: typeof logger = (options as any).defaultLogger ?? logger
+  const log = consola
 
   async function loadText(fpath: string, onError: (err: any, fpath: string) => void | Promise<void>) {
-    log.begin(`Opening file "${fpath}"`)
+    log.start(`Opening file "${fpath}"`)
     let fileContent
     try {
       fileContent = options.readFileSync(resolve(options.cwd ?? './', fpath), 'utf8')
@@ -61,7 +61,7 @@ export default async function parseDebugLog(_options: Options) {
 
   const crafttweaker_log = await loadText(options.ctlog, (_err, fpath) => log.warn(`Can't open file "${fpath}". Use option "--ctlog=path/to/crafttweker.log"`))
 
-  const mods = await getMods(debug_log, debug_lines, crafttweaker_log, log)
+  const mods = await getMods(debug_log, debug_lines, crafttweaker_log)
 
   if (Object.keys(mods).length === 0) {
     if (!debug_log.match(/\[main\/DEBUG\] \[FML\]/)) {
@@ -167,7 +167,7 @@ export default async function parseDebugLog(_options: Options) {
         ]]),
     ),
 
-    jeiPlugins: getJeiPlugins(debug_log, log),
+    jeiPlugins: getJeiPlugins(debug_log),
 
     fmlStuff: {
       total: loaderStuffTime,
@@ -175,10 +175,10 @@ export default async function parseDebugLog(_options: Options) {
     },
   }
 
-  log.begin('Composing output')
+  log.start('Composing output')
 
   if (options.data) {
-    log.begin('Writing file')
+    log.start('Writing file')
 
     const dataJson = JSON.stringify(data, null, 2)
       // prettify numerical arrays
@@ -193,7 +193,7 @@ export default async function parseDebugLog(_options: Options) {
     }
   }
 
-  let composed = await compose(data, log, options.template)
+  let composed = await compose(data, options.template)
 
   if (options.nospaces) {
     composed = composed
@@ -204,6 +204,5 @@ export default async function parseDebugLog(_options: Options) {
 
   process.stdout.write(composed)
 
-  log.result(`Load Time total: ${mcLoadTime}`)
+  log.ready(`Load Time total: ${mcLoadTime}`)
 }
-
